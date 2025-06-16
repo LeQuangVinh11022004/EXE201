@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "847969348468",
+    "project_id": "exe201-mombaby",
+    "storage_bucket": "exe201-mombaby.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:847969348468:android:2d704fb834dc2c7b8a5a21",
+        "android_client_info": {
+          "package_name": "com.example.exe_201"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "847969348468-dlfsm44dfp197q6ult2kjhc2mt4gln83.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.exe_201",
+            "certificate_hash": "a9e4f4aceaaa6f26fdfc04a268b45cbada2a4062"
+          }
+        },
+        {
+          "client_id": "847969348468-psqrieph5jm3saaqlnc26t5bol4fodto.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7kEmMF9yXscUw7oHDpWzH9Lq68g-_Q7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "847969348468-psqrieph5jm3saaqlnc26t5bol4fodto.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
