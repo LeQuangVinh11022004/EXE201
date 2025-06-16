@@ -1,4 +1,4 @@
-import 'package:exe_201/admin/dashboard.dart';
+import 'package:exe_201/expert/expert_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -237,16 +237,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             }
 
                             if (role == 'EXPERT') {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Dashboard()),
-                                (route) => false,
-                              );
+                              final userResponse = await AccountApi.getCurrentUser(accessToken);
+                              if (userResponse['statusCode'] == 200) {
+                                final userData = userResponse['body'];
+                                final expertId = userData['expert']?['id']?.toString() ?? '';
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => ExpertScreen(accessToken: accessToken, expertId: expertId)),
+                                      (route) => false,
+                                );
+                              } else {
+                                throw Exception('Failed to fetch user data: ${userResponse['body']}');
+                              }
                             } else {
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(builder: (context) => const HomePage()),
-                                (route) => false,
+                                    (route) => false,
                               );
                             }
                           } else {
