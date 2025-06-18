@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'dart:convert'; // For jsonDecode
 import '../api/account_api.dart'; // Adjust path as needed
-import '../theme.dart'; // Adjust path as needed
+// Adjust path as needed
 
 class CalendarScreen extends StatefulWidget {
   final String accessToken;
@@ -74,14 +74,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final firstDay = DateTime(year, month, 1);
     final lastDay = DateTime(year, month + 1, 0);
     final days = <DateTime>[];
-    final firstWeekday = firstDay.weekday == 7 ? 0 : firstDay.weekday; // Adjust to start on Monday
-    for (int i = firstWeekday - 1; i >= 0; i--) {
-      days.add(DateTime(year, month, -(i + 1)));
+    final firstWeekday = (firstDay.weekday - 1) % 7; // Normalize to 0-6, starting with Monday
+    // Prepend days from the previous month
+    for (int i = 0; i < firstWeekday; i++) {
+      days.add(DateTime(year, month, -(firstWeekday - 1 - i)));
     }
+    // Add days of the current month
     for (int i = 1; i <= lastDay.day; i++) {
       days.add(DateTime(year, month, i));
     }
-    final lastWeekday = lastDay.weekday == 7 ? 0 : lastDay.weekday;
+    // Append days from the next month
+    final lastWeekday = lastDay.weekday;
     for (int i = 1; i <= (7 - lastWeekday); i++) {
       days.add(DateTime(year, month + 1, i));
     }
@@ -248,7 +251,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         : FontWeight.normal,
                                   ),
                                 ),
-
                               ],
                             ),
                           ),

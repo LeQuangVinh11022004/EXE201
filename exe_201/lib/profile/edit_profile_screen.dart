@@ -142,7 +142,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Navigator.pushReplacementNamed(context, '/login');
             return;
           } else {
-            throw e;
+            rethrow;
           }
         }
       }

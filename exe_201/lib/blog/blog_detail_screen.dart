@@ -25,7 +25,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   void initState() {
     super.initState();
     _blog = Map<String, dynamic>.from(widget.blog);
+    _blog['comments'] = _blog['comments'] ?? [];
     _commentController.addListener(_updateCommentButtonState);
+    _fetchBlogDetails();
     _checkIfUserLiked();
   }
 
@@ -34,6 +36,71 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     _commentController.removeListener(_updateCommentButtonState);
     _commentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchBlogDetails() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      const storage = FlutterSecureStorage();
+      final accessToken = await storage.read(key: 'access_token');
+      if (accessToken == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please sign in to view blog details.'),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
+            backgroundColor: const Color(0xFFF8BBD0),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        return;
+      }
+
+      if (_blog['id'] == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Invalid blog ID.'),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
+            backgroundColor: const Color(0xFFF8BBD0),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        return;
+      }
+
+      final result = await BlogApi.getBlogById(
+        id: _blog['id'].toString(),
+        accessToken: accessToken,
+      );
+
+      if (result['statusCode'] == 200) {
+        setState(() {
+          _blog = result['body'] as Map<String, dynamic>;
+          // Ensure comments is a list, even if empty
+          _blog['comments'] = _blog['comments'] ?? [];
+        });
+      } else {
+        throw Exception('Failed to load blog details: ${result['body']}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading blog details: $e'),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
+          backgroundColor: const Color(0xFFF8BBD0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _updateCommentButtonState() {
@@ -93,8 +160,6 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       } else {
         throw Exception('Failed to check like status: ${result['body']}');
       }
-    } catch (e) {
-      print('Error in _checkIfUserLiked: $e'); // Debug log
     } finally {
       setState(() {
         _isLoading = false;
@@ -200,7 +265,6 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error in _toggleLike: $e'); // Debug log
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error toggling like: $e'),
@@ -267,22 +331,17 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         return;
       }
 
-      print('Commenting with blogId: ${_blog['id']}, comment: $commentText, userId: $userId');
       final result = await BlogApi.commentBlog(
         blogId: _blog['id'],
         accessToken: accessToken,
         content: commentText,
-        userId: userId, // Giữ tham số này, nhưng không gửi trong body
+        userId: userId,
       );
 
       if (result['statusCode'] == 200 || result['statusCode'] == 201) {
+        // Refetch blog details to sync comments
+        await _fetchBlogDetails();
         setState(() {
-          _blog['commentCount'] = (_blog['commentCount'] ?? 0) + 1;
-          (_blog['comments'] as List).add({
-            'content': commentText,
-            'createdTime': DateTime.now().toIso8601String(),
-            'userId': userId,
-          });
           _commentController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -310,7 +369,6 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error in _commentBlog: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error commenting: $e'),
@@ -454,11 +512,34 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10.0),
                     child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.grey[300],
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 20,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  comment['username']?.toString() ?? 'Anonymous',
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
                             Text(
                               comment['content']?.toString() ?? '',
                               style: theme.textTheme.bodyMedium,
@@ -466,8 +547,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                             const SizedBox(height: 6),
                             Text(
                               'Commented: ${_formatDateTime(comment['createdTime'])}',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontSize: 12,
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 color: Colors.grey[600],
                               ),
                             ),

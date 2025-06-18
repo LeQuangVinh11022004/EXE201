@@ -317,15 +317,15 @@ class _CreateJournalScreenState extends State<CreateJournalScreen> {
                   Center(
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _createJournalEntry,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 48),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
                       child: _isLoading
                           ? CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
                             )
                           : const Text('Tạo'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 48),
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
                     ),
                   ),
                 ],

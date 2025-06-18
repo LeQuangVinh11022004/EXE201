@@ -54,7 +54,7 @@ class LoginApi {
         'accessToken': response.statusCode == 200 ? responseBody['accessToken'] : null,
         'refreshToken': response.statusCode == 200 ? responseBody['refreshToken'] : null,
       };
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Failed to login: $e');
     }
   }

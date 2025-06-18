@@ -257,7 +257,6 @@ class _BlogScreenState extends State<BlogScreen> {
           ),
           if (_isCreatingPost)
             Container(
-              color: Colors.black.withOpacity(0.5),
               child: Center(
                 child: Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

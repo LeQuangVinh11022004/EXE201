@@ -74,7 +74,7 @@ class DoctorApi {
       } else {
         throw Exception('Failed to load doctors: ${response.statusCode} - ${response.body}');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Error fetching doctors: $e');
     } finally {
       client?.close();
@@ -121,7 +121,7 @@ class DoctorApi {
       } else {
         throw Exception('Failed to load doctor: ${response.statusCode} - ${response.body}');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Error fetching doctor: $e');
     } finally {
       client?.close();

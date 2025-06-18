@@ -296,14 +296,14 @@ class _UpdateJournalScreenState extends State<UpdateJournalScreen> {
               Center(
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _updateJournalEntry,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
                   child: _isLoading
                       ? CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
                         )
                       : const Text('Cập nhật'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 48),
-                  ),
                 ),
               ),
             ],

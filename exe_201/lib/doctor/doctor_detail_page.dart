@@ -5,6 +5,7 @@ import '../api/appointment_api.dart';
 import '../api/doctor_api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/account_api.dart';
+import 'appointment_detail_screen.dart'; // Thêm import này
 
 class DoctorDetailPage extends StatefulWidget {
   final String expertId;
@@ -298,7 +299,8 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
                       date: _formatDateTime(appointment['appointmentDate']) ?? 'N/A',
                       status: appointment['status'] ?? 'N/A',
                       statusColor: _getStatusColor(appointment['status'] ?? 'N/A'),
-                    )).toList(),
+                      appointmentId: appointment['id'] ?? '',
+                    )),
                     const SizedBox(height: 24),
                     Container(
                       width: double.infinity,
@@ -410,6 +412,7 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
     required String date,
     required String status,
     required Color statusColor,
+    required String appointmentId,
   }) {
     return Card(
       elevation: 2,
@@ -418,7 +421,12 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
       ),
       child: InkWell(
         onTap: () {
-          // Không cho phép người dùng thay đổi trạng thái
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AppointmentDetailScreen(appointmentId: appointmentId),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(

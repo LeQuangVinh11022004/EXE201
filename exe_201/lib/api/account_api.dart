@@ -65,10 +65,98 @@ class AccountApi {
         throw Exception(
             'Failed to fetch appointments: ${response.statusCode} - ${response.body}');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Failed to fetch appointments: $e');
     } finally {
       client.close();
+    }
+  }
+
+  static Future<Map<String, dynamic>> getMeetingLink({
+    required String accessToken,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/helpper/meet-link');
+
+    try {
+      final client = await _createClient();
+
+      final response = await client
+          .get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      )
+          .timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out after 30 seconds');
+      });
+
+      dynamic responseBody;
+      try {
+        responseBody = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+      } catch (e) {
+        throw Exception('Failed to parse response: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        return {
+          'statusCode': response.statusCode,
+          'body': responseBody,
+        };
+      } else {
+        throw Exception(
+            'Failed to fetch meeting link: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch meeting link: $e');
+    } finally {
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateAppointmentMeetingLink({
+    required String accessToken,
+    required String id,
+    required String linkMeet,
+  }) async {
+    final client = await _createClient();
+    try {
+      final url = Uri.parse('$_baseUrl/api/appointment/$id');
+
+      final response = await client
+          .put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({'linkMeet': linkMeet}), // Gửi linkMeet dưới dạng JSON
+      )
+          .timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out after 30 seconds');
+      });
+
+      dynamic responseBody;
+      try {
+        responseBody = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+      } catch (e) {
+        throw Exception('Failed to parse response: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        return {
+          'statusCode': response.statusCode,
+          'body': responseBody,
+        };
+      } else {
+        throw Exception(
+            'Failed to update appointment meeting link: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to update appointment meeting link: $e');
+    } finally {
     }
   }
 
@@ -111,7 +199,7 @@ class AccountApi {
         'statusCode': response.statusCode,
         'body': responseBody,
       };
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Failed to fetch expert calendar: $e');
     }
   }
@@ -146,7 +234,7 @@ class AccountApi {
         'statusCode': response.statusCode,
         'body': responseBody,
       };
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Failed to fetch user data: $e');
     }
   }
@@ -159,7 +247,6 @@ class AccountApi {
     final client = await _createClient();
     try {
       final url = Uri.parse('$_baseUrl/api/appointment/$id');
-      print('Request URL: $url'); // Log URL để debug
 
       // Kiểm tra xem trạng thái có hợp lệ không
       final validStatuses = ['Canceled', 'Completed', 'Pending', 'Approved'];
@@ -242,7 +329,7 @@ class AccountApi {
         'statusCode': response.statusCode,
         'body': responseBody,
       };
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Failed to update account: $e');
     }
   }
@@ -278,7 +365,7 @@ class AccountApi {
         'statusCode': response.statusCode,
         'body': responseBody,
       };
-    } catch (e, stackTrace) {
+    } catch (e) {
       throw Exception('Failed to upload avatar: $e');
     }
   }

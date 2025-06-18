@@ -241,7 +241,6 @@ class BlogApi {
       final uri = Uri.parse('$baseUrl/api/interaction/comment/$blogId');
       final body = content.trim(); // Gửi chuỗi đơn làm body
 
-      print('Sending comment request: $body'); // Debug log
       final response = await client
           .post(
         uri,
@@ -255,7 +254,6 @@ class BlogApi {
       )
           .timeout(const Duration(seconds: 15));
 
-      print('Response status: ${response.statusCode}, body: ${response.body}'); // Debug log
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'statusCode': response.statusCode,
@@ -265,7 +263,6 @@ class BlogApi {
         throw Exception('Failed to comment blog: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error in commentBlog: $e'); // Debug log
       throw Exception('Error commenting blog: $e');
     }
   }
@@ -288,7 +285,6 @@ class BlogApi {
       )
           .timeout(const Duration(seconds: 15));
 
-      print('Response status: ${response.statusCode}, body: ${response.body}'); // Debug log
       if (response.statusCode == 200) {
         return {
           'statusCode': response.statusCode,
@@ -298,7 +294,6 @@ class BlogApi {
         throw Exception('Failed to get blog: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error in getBlogById: $e'); // Debug log
       throw Exception('Error getting blog: $e');
     }
   }

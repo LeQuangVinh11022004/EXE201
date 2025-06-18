@@ -69,4 +69,27 @@ class ChatApi {
     } finally {
     }
   }
+
+  static Future<Map<String, dynamic>> fetchChatHubForDoctor(String doctorId) async {
+    final url = Uri.parse('$_baseUrl/api/chat/hubs/user/$doctorId');
+
+    try {
+      final client = await _getClient();
+      final response = await client.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      final responseBody = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      return {
+        'statusCode': response.statusCode,
+        'body': responseBody,
+      };
+    } catch (e) {
+      throw Exception('Failed to fetch chat hub for doctor: $e');
+    }
+  }
 }

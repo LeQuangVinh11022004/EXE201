@@ -32,17 +32,24 @@ class _MeetLinkScreenState extends State<MeetLinkScreen> {
 
     final client = http.Client();
     try {
-      // Kiểm tra thời gian cuộc hẹn trước khi mở link
+      const storage = FlutterSecureStorage();
+      final accessToken = await storage.read(key: 'access_token');
+      if (accessToken == null) {
+        throw Exception('No access token found. Please log in.');
+      }
+
+      // Lấy thông tin appointment
       final appointmentResponse = await client.get(
         Uri.parse('$_baseUrl/api/appointment/${widget.appointmentId}'),
         headers: {
-          'Authorization': 'Bearer ${await const FlutterSecureStorage().read(key: 'access_token')}',
+          'Authorization': 'Bearer $accessToken',
         },
       );
 
       if (appointmentResponse.statusCode == 200) {
         final appointmentData = json.decode(appointmentResponse.body);
         final appointmentTime = DateTime.parse(appointmentData['appointmentDate']);
+        final meetingUrl = appointmentData['linkMeet'] as String? ?? '';
         final currentTime = DateTime.now();
 
         if (currentTime.isBefore(appointmentTime)) {
@@ -52,35 +59,26 @@ class _MeetLinkScreenState extends State<MeetLinkScreen> {
           });
           return;
         }
-      } else {
-        setState(() {
-          _errorMessage = 'Lỗi khi kiểm tra thời gian cuộc hẹn: ${appointmentResponse.statusCode}';
-          _isLoading = false;
-        });
-        return;
-      }
 
-      final response = await client.get(Uri.parse('$_baseUrl/api/helpper/meet-link'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final meetingUrl = data['meetingUrl'] as String?;
-        if (meetingUrl != null && meetingUrl.isNotEmpty) {
-          final Uri uri = Uri.parse(meetingUrl);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          } else {
-            setState(() {
-              _errorMessage = 'Không thể mở URL: $meetingUrl';
-            });
-          }
+        if (meetingUrl.isEmpty) {
+          setState(() {
+            _errorMessage = 'Không tìm thấy URL cuộc họp trong dữ liệu appointment';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final Uri uri = Uri.parse(meetingUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else {
           setState(() {
-            _errorMessage = 'Không tìm thấy URL cuộc họp trong phản hồi';
+            _errorMessage = 'Không thể mở URL: $meetingUrl';
           });
         }
       } else {
         setState(() {
-          _errorMessage = 'Lỗi khi gọi API: ${response.statusCode} - ${response.body}';
+          _errorMessage = 'Lỗi khi lấy thông tin cuộc hẹn: ${appointmentResponse.statusCode}';
         });
       }
     } catch (e) {

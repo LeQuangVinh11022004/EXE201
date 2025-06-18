@@ -38,12 +38,12 @@ ThemeData appTheme() {
         fontFamily: 'Poppins',
       ),
     ),
-    cardTheme: CardTheme(
-      color: Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-    ),
+    cardTheme: CardThemeData(
+    color: Colors.white,
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+  ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFFFFF8F8),
       elevation: 0,
@@ -96,7 +96,7 @@ ThemeData appTheme() {
       ),
       behavior: SnackBarBehavior.floating,
     ),
-    dialogTheme: DialogTheme(
+    dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       backgroundColor: Colors.white,
       titleTextStyle: const TextStyle(

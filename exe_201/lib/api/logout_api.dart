@@ -55,7 +55,7 @@ class LogoutApi {
         'body': responseBody,
       };
     } on ClientException catch (e) {
-      throw Exception('Connection error: $e (URI: ${url})');
+      throw Exception('Connection error: $e (URI: $url)');
     } on SocketException catch (e) {
       throw Exception('Failed to connect to the server: $e');
     } catch (e) {

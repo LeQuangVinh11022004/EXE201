@@ -44,7 +44,7 @@ class _MembershipPackagePageState extends State<MembershipPackagePage> {
 
       setState(() {
         packages = updatedPackages;
-        this.uniqueDeals = uniqueDealsSet;
+        uniqueDeals = uniqueDealsSet;
         isLoading = false;
         selectedDurations = {for (var package in packages) package['id'] as String: 1};
       });
@@ -242,7 +242,7 @@ class _MembershipPackagePageState extends State<MembershipPackagePage> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 16),
-                ...uniqueDeals.map((deal) => _buildDealCard(deal)).toList(),
+                ...uniqueDeals.map((deal) => _buildDealCard(deal)),
                 const SizedBox(height: 24),
               ],
             ),
@@ -289,7 +289,7 @@ class _MembershipPackagePageState extends State<MembershipPackagePage> {
             ),
             const SizedBox(height: 12),
             Text(
-              '\$$price',
+              '$price VND',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.grey[800]),
             ),
             const SizedBox(height: 16),

@@ -70,7 +70,7 @@ class JournalApi {
         }
       } on FormatException catch (e) {
         throw Exception('Failed to parse server response: $e');
-      } on http.ClientException catch (e) {
+      } on http.ClientException {
         attempt++;
         if (attempt == maxRetries) {
         }
@@ -155,12 +155,12 @@ class JournalApi {
         }
       } on FormatException catch (e) {
         throw Exception('Failed to parse server response: $e');
-      } on http.ClientException catch (e) {
+      } on http.ClientException {
         attempt++;
         if (attempt == maxRetries) {
         }
         await Future.delayed(Duration(seconds: 2 * attempt));
-      } on SocketException catch (e) {
+      } on SocketException {
         attempt++;
         if (attempt == maxRetries) {
         }
@@ -244,7 +244,7 @@ class JournalApi {
         }
       } on FormatException catch (e) {
         throw Exception('Failed to parse server response: $e');
-      } on http.ClientException catch (e) {
+      } on http.ClientException {
         attempt++;
         if (attempt == maxRetries) {
         }
@@ -315,7 +315,7 @@ class JournalApi {
         }
       } on FormatException catch (e) {
         throw Exception('Failed to parse server response: $e');
-      } on http.ClientException catch (e) {
+      } on http.ClientException {
         attempt++;
         if (attempt == maxRetries) {
         }

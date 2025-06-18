@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:exe_201/api/account_api.dart';
+import 'package:exe_201/doctor/doctor_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/appointment_api.dart';
-import 'meet_link_screen.dart';
+import 'package:http/http.dart' as http;
 
 class ConnectDoctorScreen extends StatefulWidget {
   final String expertId;
@@ -102,7 +105,6 @@ class _ConnectDoctorScreenState extends State<ConnectDoctorScreen> {
       );
     }
   }
-
   Future<void> _createAppointment() async {
     if (_userId == null || _selectedTimeSlotId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -132,18 +134,6 @@ class _ConnectDoctorScreenState extends State<ConnectDoctorScreen> {
       return;
     }
 
-    final appointmentData = {
-      "content": medicalHistory,
-      "type": "InPerson",
-      "appointmentDate": DateTime.now().toUtc().toIso8601String(),
-      "place": address,
-      "linkMeet": "",
-      "timeSlotId": _selectedTimeSlotId,
-      "customerId": _userId,
-      "expertId": widget.expertId,
-      "mobileNo": mobileNo,
-    };
-
     try {
       const storage = FlutterSecureStorage();
       final accessToken = await storage.read(key: 'access_token');
@@ -151,6 +141,40 @@ class _ConnectDoctorScreenState extends State<ConnectDoctorScreen> {
         throw Exception('No access token found. Please log in.');
       }
 
+      // Gọi API để lấy meeting link
+      final client = http.Client();
+      final meetLinkResponse = await client.get(
+        Uri.parse('https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/helpper/meet-link'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      String meetingUrl = '';
+      if (meetLinkResponse.statusCode == 200) {
+        final meetLinkData = json.decode(meetLinkResponse.body);
+        meetingUrl = meetLinkData['meetingUrl'] as String? ?? '';
+        if (meetingUrl.isEmpty) {
+          throw Exception('Meeting URL is empty or not found.');
+        }
+      } else {
+        throw Exception('Failed to fetch meeting link: ${meetLinkResponse.statusCode} - ${meetLinkResponse.body}');
+      }
+
+      // Tạo request body với meetingUrl
+      final appointmentData = {
+        "content": medicalHistory,
+        "type": "InPerson",
+        "appointmentDate": DateTime.now().toUtc().toIso8601String(),
+        "place": address,
+        "linkMeet": meetingUrl, // Gán meetingUrl vào linkMeet
+        "timeSlotId": _selectedTimeSlotId,
+        "customerId": _userId,
+        "expertId": widget.expertId,
+        "mobileNo": mobileNo,
+      };
+
+      // Gọi API tạo appointment
       final response = await AppointmentApi.createAppointment(appointmentData, accessToken);
       final appointmentId = response['id'];
       if (appointmentId == null) {
@@ -163,7 +187,9 @@ class _ConnectDoctorScreenState extends State<ConnectDoctorScreen> {
 
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => MeetLinkScreen(appointmentId: appointmentId)),
+        MaterialPageRoute(
+          builder: (context) => DoctorDetailPage(expertId: widget.expertId),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
