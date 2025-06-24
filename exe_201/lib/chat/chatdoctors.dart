@@ -1,8 +1,9 @@
 import 'package:exe_201/chat/chat_page.dart';
 import 'package:flutter/material.dart';
+import '../service/signalRService.dart';
 import '/nav/bottom_nav_bar.dart';
-import '../api/account_api.dart'; // For getCurrentUser
-import '../api/chat_api.dart'; // For fetchChatHub
+import '../api/account_api.dart';
+import '../api/chat_api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AppointmentsPage extends StatefulWidget {
@@ -13,9 +14,9 @@ class AppointmentsPage extends StatefulWidget {
 }
 
 class _AppointmentsPageState extends State<AppointmentsPage> {
-  List<Map<String, dynamic>>? chatHubData; // Lưu danh sách chatHub
+  List<Map<String, dynamic>>? chatHubData;
   bool isLoading = true;
-  final storage = const FlutterSecureStorage(); // Khởi tạo storage
+  final storage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -23,16 +24,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     _fetchChatHub();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<String?> _getAccessToken() async {
-    final token = await storage.read(key: 'access_token'); // Đọc token với key đúng
-    if (token == null) {
-    }
-    return token;
+    return await storage.read(key: 'access_token');
   }
 
   Future<void> _fetchChatHub() async {
@@ -40,21 +33,18 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     try {
       final accessToken = await _getAccessToken();
       if (accessToken == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to continue')),
-        );
-        throw Exception('Access token not found for user data');
+        throw Exception('Please login to continue');
       }
 
       final userData = await AccountApi.getCurrentUser(accessToken);
       if (userData['statusCode'] != 200) {
-        throw Exception('Failed to fetch user data: ${userData['statusCode']} - ${userData['body'] ?? 'No response body'}');
+        throw Exception('Failed to fetch user data');
       }
       final userId = userData['body']['id'] as String;
 
       final chatHubResponse = await ChatApi.fetchChatHub(userId);
       if (chatHubResponse['statusCode'] != 200) {
-        throw Exception('Failed to fetch chat hub: ${chatHubResponse['statusCode']} - ${chatHubResponse['body'] ?? 'No response body'}');
+        throw Exception('Failed to fetch chat hub');
       }
 
       setState(() {
@@ -64,25 +54,54 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     } catch (e) {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error fetching chat hub: ${e.toString().replaceFirst('Exception: ', '')}'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}')),
       );
-
     }
   }
 
-  void _showChat(String doctorName, String chatHubId) {
-    showModalBottomSheet(
+  void _showChat(String doctorName, String chatHubId) async {
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      builder: (context) => ChatPage(
-        doctorName: doctorName,
-        chatHubId: chatHubId,
-        onClose: () => Navigator.pop(context), // Đảm bảo truyền đúng onClose
-      ),
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final signalR = SignalRService();
+      if (!signalR.isConnected) {
+        await signalR.connect();
+      }
+
+      await signalR.joinChatHub(chatHubId);
+      Navigator.pop(context);
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => ChatPage(
+          doctorName: doctorName,
+          chatHubId: chatHubId,
+          onClose: () async {
+            await signalR.leaveChatHub(chatHubId);
+            Navigator.pop(context);
+          },
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      String errorMessage = e.toString().contains('503')
+          ? 'Server is currently unavailable. Please try again later.'
+          : e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to connect: $errorMessage'),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _showChat(doctorName, chatHubId),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -90,27 +109,40 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.pink[50],
-        elevation: 0,
         centerTitle: true,
         title: const Text(
           'Mom&Baby Chat Hubs',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchChatHub,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildChatHubList(chatHubData),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 2), // Assuming "Journal" tab (index 2)
+      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }
 
   Widget _buildChatHubList(List<Map<String, dynamic>>? chatHubs) {
     if (chatHubs == null || chatHubs.isEmpty) {
-      return const Center(child: Text('No chat hub data available'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text('No chat hubs available', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            ElevatedButton(onPressed: _fetchChatHub, child: const Text('Refresh')),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
@@ -118,26 +150,22 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       itemCount: chatHubs.length,
       itemBuilder: (context, index) {
         final chatHub = chatHubs[index];
+        final hubName = chatHub['nameChatHub'] ?? 'Unnamed Hub';
+        final status = chatHub['status'] ?? 'Unknown';
+
         return Card(
-          elevation: 2,
           margin: const EdgeInsets.symmetric(vertical: 8),
           child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.chat),
+            leading: CircleAvatar(
+              backgroundColor: status.toLowerCase() == 'active' ? Colors.green[100] : Colors.orange[100],
+              child: Icon(Icons.chat, color: status.toLowerCase() == 'active' ? Colors.green[700] : Colors.orange[700]),
             ),
-            title: Text(
-              'Chat Hub: ${chatHub['nameChatHub'] ?? 'Unnamed'}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Status: ${chatHub['status'] ?? 'Unknown'}'),
-              ],
-            ),
+            title: Text('Chat Hub: $hubName', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('Status: $status'),
             trailing: IconButton(
               icon: const Icon(Icons.message),
-              onPressed: () => _showChat(chatHub['nameChatHub'] ?? 'Unknown', chatHub['id']),
+              onPressed: () => _showChat(hubName, chatHub['id']),
+              tooltip: 'Open chat',
             ),
           ),
         );

@@ -487,7 +487,7 @@ class _ExpertScreenState extends State<ExpertScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Expert Dashboard',
+          'Expert',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,

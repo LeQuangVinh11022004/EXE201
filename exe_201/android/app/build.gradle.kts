@@ -33,10 +33,11 @@ android {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias")
             keyPassword = keystoreProperties.getProperty("keyPassword")
-            storeFile = keystoreProperties.getProperty("storeFile")?.let { File(it) }
+            storeFile = keystoreProperties.getProperty("storeFile")?.let { File(it).absoluteFile }
             storePassword = keystoreProperties.getProperty("storePassword")
         }
     }
+
 
     defaultConfig {
         applicationId = "com.example.exe_201"

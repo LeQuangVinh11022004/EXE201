@@ -39,11 +39,11 @@ ThemeData appTheme() {
       ),
     ),
     cardTheme: CardThemeData(
-    color: Colors.white,
-    elevation: 2,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-  ),
+      color: Colors.white,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFFFFF8F8),
       elevation: 0,
@@ -84,17 +84,17 @@ ThemeData appTheme() {
         ),
       ),
     ),
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: const Color.fromARGB(255, 238, 87, 140),
-      contentTextStyle: const TextStyle(
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: Color.fromARGB(255, 238, 87, 140), // Đảm bảo màu
+      contentTextStyle: TextStyle(
         color: Colors.black87,
         fontFamily: 'Poppins',
         fontSize: 14,
       ),
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      behavior: SnackBarBehavior.floating,
+      behavior: SnackBarBehavior.fixed, // Xác định floating
     ),
     dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

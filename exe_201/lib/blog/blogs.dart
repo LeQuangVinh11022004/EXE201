@@ -41,7 +41,7 @@ class _BlogScreenState extends State<BlogScreen> {
       const storage = FlutterSecureStorage();
       final accessToken = await storage.read(key: 'access_token');
       if (accessToken == null) {
-        _showSnackbar('No access token found. Please log in.');
+        _showSnackBar('No access token found. Please log in.');
         return;
       }
 
@@ -52,17 +52,25 @@ class _BlogScreenState extends State<BlogScreen> {
           _blogs = List<Map<String, dynamic>>.from(data['items'] ?? []);
         });
       } else {
-        _showSnackbar('Failed to load blogs: ${result['body']}');
+        _showSnackBar('Failed to load blogs: ${result['body']}');
       }
     } catch (e) {
-      _showSnackbar('Error loading blogs: $e');
+      _showSnackBar('Error loading blogs: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _showSnackBar(String message) {
+    print('Showing SnackBar: $message');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.fixed, // Thay đổi từ floating sang fixed
+        backgroundColor: const Color(0xFFF8BBD0),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -75,7 +83,7 @@ class _BlogScreenState extends State<BlogScreen> {
 
   Future<void> _uploadImageAndCreatePost() async {
     if (_contentController.text.trim().isEmpty) {
-      _showSnackbar('Please enter some content');
+      _showSnackBar('Please enter some content');
       return;
     }
 
@@ -85,7 +93,7 @@ class _BlogScreenState extends State<BlogScreen> {
       const storage = FlutterSecureStorage();
       final accessToken = await storage.read(key: 'access_token');
       if (accessToken == null) {
-        _showSnackbar('No access token found. Please log in.');
+        _showSnackBar('No access token found. Please log in.');
         return;
       }
 
@@ -99,18 +107,18 @@ class _BlogScreenState extends State<BlogScreen> {
           if (uploadResult['statusCode'] == 200) {
             imageUrl = uploadResult['body'] as String?;
           } else {
-            _showSnackbar('Failed to upload image: ${uploadResult['body']}');
+            _showSnackBar('Failed to upload image: ${uploadResult['body']}');
             return;
           }
         } catch (e) {
-          _showSnackbar('Upload failed: $e');
+          _showSnackBar('Upload failed: $e');
           return;
         }
       }
 
       await _createPost(imageUrl);
     } catch (e) {
-      _showSnackbar('Error processing post: $e');
+      _showSnackBar('Error processing post: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -121,7 +129,7 @@ class _BlogScreenState extends State<BlogScreen> {
       const storage = FlutterSecureStorage();
       final accessToken = await storage.read(key: 'access_token');
       if (accessToken == null) {
-        _showSnackbar('No access token found. Please log in.');
+        _showSnackBar('No access token found. Please log in.');
         return;
       }
 
@@ -132,7 +140,7 @@ class _BlogScreenState extends State<BlogScreen> {
       );
 
       if (result['statusCode'] == 200 || result['statusCode'] == 201) {
-        _showSnackbar('Post created successfully!');
+        _showSnackBar('Post created successfully!');
         setState(() {
           _isCreatingPost = false;
           _contentController.clear();
@@ -140,10 +148,10 @@ class _BlogScreenState extends State<BlogScreen> {
         });
         _fetchBlogs();
       } else {
-        _showSnackbar('Failed to create post: ${result['body']}');
+        _showSnackBar('Failed to create post: ${result['body']}');
       }
     } catch (e) {
-      _showSnackbar('Error creating post: $e');
+      _showSnackBar('Error creating post: $e');
     }
   }
 

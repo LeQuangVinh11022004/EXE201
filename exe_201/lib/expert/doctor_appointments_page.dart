@@ -71,17 +71,18 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     }
   }
 
-  void _showChat(String nameChatHub, String chatHubId) {
+  void _showChat(String doctorName, String chatHubId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => DoctorChatPage(
-        nameChatHub: nameChatHub,
+        doctorName: doctorName,
         chatHubId: chatHubId,
         onClose: () => Navigator.pop(context),
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

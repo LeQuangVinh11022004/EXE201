@@ -1,21 +1,22 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'dart:io';
-import 'package:http/io_client.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/io_client.dart';
 import 'package:intl/intl.dart';
 import '../api/chat_api.dart';
 import '../api/account_api.dart';
 import '../nav/bottom_nav_bar.dart';
+import '../service/signalRService.dart';
 
 class DoctorChatPage extends StatefulWidget {
-  final String nameChatHub;
+  final String doctorName;
   final String chatHubId;
   final VoidCallback onClose;
 
   const DoctorChatPage({
     super.key,
-    required this.nameChatHub,
+    required this.doctorName,
     required this.chatHubId,
     required this.onClose,
   });
@@ -30,46 +31,86 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
   final List<Map<String, dynamic>> _messages = [];
   final storage = const FlutterSecureStorage();
   bool isLoading = false;
+  late SignalRService signalR;
+  String? currentUserId;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-      _fetchInitialMessages();
+    signalR = SignalRService();
+    signalR.onMessageReceived = _handleIncomingMessage;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initChat();
     });
   }
 
-  Future<void> _fetchInitialMessages() async {
+  Future<void> _initChat() async {
     setState(() => isLoading = true);
-    try {
-      final accessToken = await _getAccessToken();
-      if (accessToken == null) {
-        _showSnackBar('Please login to continue');
-        return;
-      }
+    final accessToken = await _getAccessToken();
+    if (accessToken == null) {
+      _showSnackBar("Please login to continue");
+      setState(() => isLoading = false);
+      return;
+    }
 
+    final userResponse = await AccountApi.getCurrentUser(accessToken);
+    if (userResponse['statusCode'] != 200) {
+      _showSnackBar("Failed to fetch user data");
+      setState(() => isLoading = false);
+      return;
+    }
+    currentUserId = userResponse['body']['id'] as String?;
+
+    await _connectSignalR();
+    await _fetchInitialMessages();
+    setState(() => isLoading = false);
+  }
+
+  Future<void> _connectSignalR() async {
+    if (!signalR.isConnected) {
+      await signalR.connect();
+    }
+    await signalR.joinChatHub(widget.chatHubId);
+  }
+
+  void _handleIncomingMessage(Map<String, dynamic> message) {
+    final now = DateTime.now();
+    setState(() {
+      _messages.add({
+        'text': message['content'] ?? '',
+        'senderId': message['senderId'],
+        'time': DateFormat('d MMM yyyy HH:mm').format(now),
+      });
+    });
+    _scrollToBottom();
+  }
+
+  Future<String?> _getAccessToken() async {
+    return await storage.read(key: 'access_token');
+  }
+
+  Future<void> _fetchInitialMessages() async {
+    setState(() => isLoading = false);
+    try {
       final response = await ChatApi.fetchChatHubById(widget.chatHubId);
       if (response['statusCode'] == 200) {
-        final chatHub = response['body'];
-        if (chatHub['chatMessages'] != null && chatHub['chatMessages'] is List) {
-          final userId = await _getCurrentUserId(accessToken);
-          final chatMessages = chatHub['chatMessages'] as List<dynamic>;
-          setState(() {
-            _messages.clear();
-            _messages.addAll(chatMessages.whereType<Map<String, dynamic>>().map((msg) {
-              final createdTime = msg['createdTime'] as String?;
-              final time = createdTime != null
-                  ? DateFormat('d MMM yyyy HH:mm').format(DateTime.parse(createdTime))
-                  : DateFormat('d MMM yyyy HH:mm').format(DateTime.now());
-              return {
-                'text': msg['content'] ?? 'No content',
-                'isSentByUser': userId != null && msg['senderId'] == userId,
-                'time': time,
-              };
-            }).toList());
-          });
-        }
+        final chatMessages = response['body']['chatMessages'] as List<dynamic>;
+        setState(() {
+          _messages.clear();
+          _messages.addAll(chatMessages.reversed.map((msg) {
+            final createdTime = msg['createdTime'] as String?;
+            final time = createdTime != null
+                ? DateFormat('d MMM yyyy HH:mm').format(DateTime.parse(createdTime))
+                : DateFormat('d MMM yyyy HH:mm').format(DateTime.now());
+            return {
+              'text': msg['content'] ?? '',
+              'senderId': msg['senderId'],
+              'time': time,
+            };
+          }).toList());
+        });
+        _scrollToBottom();
       } else {
         throw Exception('Failed to fetch messages: ${response['statusCode']}');
       }
@@ -77,42 +118,26 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
       _showSnackBar('Error fetching messages: ${e.toString().replaceFirst('Exception: ', '')}');
     } finally {
       setState(() => isLoading = false);
-      _scrollToBottom();
-    }
-  }
-
-  Future<String?> _getAccessToken() async {
-    return await storage.read(key: 'access_token');
-  }
-
-  Future<String?> _getCurrentUserId(String? accessToken) async {
-    if (accessToken == null) return null;
-    try {
-      final response = await AccountApi.getCurrentUser(accessToken);
-      return response['statusCode'] == 200 ? response['body']['id'] as String : null;
-    } catch (e) {
-      return null;
     }
   }
 
   Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
+    final text = _controller.text.trim();
+    final accessToken = await _getAccessToken();
+    if (accessToken == null) {
+      _showSnackBar("Please login to continue");
+      return;
+    }
 
-    setState(() => isLoading = true);
+    setState(() => isLoading = false);
+    final url = Uri.parse(
+      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/chat/message',
+    );
+    final client = IOClient(HttpClient()..badCertificateCallback = (_, __, ___) => true);
+
     try {
-      final accessToken = await _getAccessToken();
-      if (accessToken == null) {
-        _showSnackBar('Please login to continue');
-        return;
-      }
-
-      final url = Uri.parse(
-          'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/chat/message');
-      final ioClient = HttpClient()..badCertificateCallback = (_, __, ___) => true;
-      final client = IOClient(ioClient);
-
-      final response = await client
-          .post(
+      final response = await client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -120,26 +145,23 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
         },
         body: jsonEncode({
           'chatHubId': widget.chatHubId,
-          'content': _controller.text.trim(),
+          'content': text,
           'type': 'Text',
         }),
-      )
-          .timeout(const Duration(seconds: 15));
+      );
 
       if (response.statusCode == 200) {
-        final currentTime = DateFormat('d MMM yyyy HH:mm').format(DateTime.now());
         setState(() {
           _messages.add({
-            'text': _controller.text.trim(),
-            'isSentByUser': true,
-            'time': currentTime,
+            'text': text,
+            'senderId': currentUserId,
+            'time': DateFormat('d MMM yyyy HH:mm').format(DateTime.now()),
           });
           _controller.clear();
-          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
         });
-        await _fetchInitialMessages();
+        _scrollToBottom();
       } else {
-        throw Exception('Failed to send message: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to send message: ${response.statusCode}');
       }
     } catch (e) {
       _showSnackBar('Error sending message: ${e.toString().replaceFirst('Exception: ', '')}');
@@ -149,237 +171,88 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: Theme.of(context).snackBarTheme.contentTextStyle,
-        ),
-        behavior: Theme.of(context).snackBarTheme.behavior,
-        backgroundColor: Theme.of(context).snackBarTheme.backgroundColor,
-        shape: Theme.of(context).snackBarTheme.shape,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    signalR.leaveChatHub(widget.chatHubId);
+    signalR.onMessageReceived = null;
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        toolbarHeight: screenHeight * 0.1,
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: Theme.of(context).appBarTheme.elevation,
+        title: Text("Dr. ${widget.doctorName}"),
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Theme.of(context).appBarTheme.iconTheme?.color,
-            size: screenWidth * 0.08,
-          ),
+          icon: const Icon(Icons.arrow_back),
           onPressed: widget.onClose,
         ),
-        title: Padding(
-          padding: EdgeInsets.symmetric(vertical: screenHeight * 0.02),
-          child: Row(
-            children: [
-              Icon(
-                Icons.account_circle,
-                color: Theme.of(context).appBarTheme.iconTheme?.color,
-                size: screenWidth * 0.1,
-              ),
-              SizedBox(width: screenWidth * 0.03),
-              Flexible( // Wrap Column with Flexible to prevent overflow
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Customer: ${widget.nameChatHub}",
-                      style: Theme.of(context).appBarTheme.titleTextStyle?.copyWith(
-                        fontSize: screenWidth * 0.06,
-                      ),
-                      overflow: TextOverflow.ellipsis, // Truncate long text
-                      maxLines: 1, // Limit to one line
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                final isSentByCurrentUser = msg['senderId'] == currentUserId;
+                return Align(
+                  key: ValueKey(index), // Tối ưu render
+                  alignment: isSentByCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSentByCurrentUser ? Colors.pink[100] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    Text(
-                      "Online",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: screenWidth * 0.035,
-                      ),
-                    ),
-                  ],
+                    child: Text(msg['text']),
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(hintText: "Type a message"),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.call,
-              color: Theme.of(context).appBarTheme.iconTheme?.color,
-              size: screenWidth * 0.09,
+                IconButton(
+                  icon: isLoading ? const CircularProgressIndicator(strokeWidth: 2) : const Icon(Icons.send),
+                  onPressed: isLoading ? null : _sendMessage,
+                ),
+              ],
             ),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.videocam,
-              color: Theme.of(context).appBarTheme.iconTheme?.color,
-              size: screenWidth * 0.09,
-            ),
-            onPressed: () {},
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: isLoading
-                  ? Center(
-                child: CircularProgressIndicator(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              )
-                  : ListView.builder(
-                controller: _scrollController,
-                padding: EdgeInsets.all(screenWidth * 0.04),
-                reverse: true,
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message = _messages[index];
-                  final time = message['time'];
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: screenWidth * 0.02),
-                    child: Column(
-                      children: [
-                        Center(
-                          child: Text(
-                            time,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey,
-                              fontSize: screenWidth * 0.03,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: screenWidth * 0.01),
-                        Row(
-                          mainAxisAlignment: message['isSentByUser']
-                              ? MainAxisAlignment.end
-                              : MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Flexible(
-                              child: Card(
-                                elevation: Theme.of(context).cardTheme.elevation,
-                                shape: Theme.of(context).cardTheme.shape,
-                                color: message['isSentByUser']
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.surface,
-                                child: Padding(
-                                  padding: EdgeInsets.all(screenWidth * 0.03),
-                                  child: Text(
-                                    message['text'],
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: message['isSentByUser']
-                                          ? Theme.of(context).colorScheme.onPrimary
-                                          : Theme.of(context).colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: screenHeight * 0.02,
-                left: screenWidth * 0.02,
-                right: screenWidth * 0.02,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(screenWidth * 0.05),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.mic,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        size: screenWidth * 0.07,
-                      ),
-                      onPressed: () {},
-                    ),
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(screenWidth * 0.05),
-                        ),
-                        child: TextField(
-                          controller: _controller,
-                          decoration: InputDecoration(
-                            hintText: "Write now...",
-                            border: InputBorder.none,
-                            hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                              fontSize: screenWidth * 0.04,
-                            ),
-                          ),
-                          onSubmitted: (_) => _sendMessage(),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: screenWidth * 0.04,
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.send,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: screenWidth * 0.07,
-                      ),
-                      onPressed: _sendMessage,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 }

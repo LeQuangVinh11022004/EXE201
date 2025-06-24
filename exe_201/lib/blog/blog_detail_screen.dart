@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
 import '../api/blog_api.dart';
 
 class BlogDetailScreen extends StatefulWidget {
@@ -16,6 +15,7 @@ class BlogDetailScreen extends StatefulWidget {
 class _BlogDetailScreenState extends State<BlogDetailScreen> {
   bool _isLoading = false;
   bool _isTogglingLike = false; // Debounce flag for like/unlike
+  bool _hasFetchedDetails = false; // Flag to track API fetch completion
   final _commentController = TextEditingController();
   late Map<String, dynamic> _blog;
   bool _isLiked = false;
@@ -25,6 +25,12 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   void initState() {
     super.initState();
     _blog = Map<String, dynamic>.from(widget.blog);
+    // Sanitize initial image field
+    if (_blog['image'] == 'string' || _blog['image']?.toString().isEmpty == true) {
+      _blog['image'] = null;
+    }
+    print('Initial widget.blog: ${widget.blog}');
+    print('Initial widget.blog image: ${widget.blog['image']}');
     _blog['comments'] = _blog['comments'] ?? [];
     _commentController.addListener(_updateCommentButtonState);
     _fetchBlogDetails();
@@ -47,28 +53,12 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       const storage = FlutterSecureStorage();
       final accessToken = await storage.read(key: 'access_token');
       if (accessToken == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please sign in to view blog details.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Please sign in to view blog details.');
         return;
       }
 
       if (_blog['id'] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Invalid blog ID.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Invalid blog ID.');
         return;
       }
 
@@ -80,25 +70,22 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       if (result['statusCode'] == 200) {
         setState(() {
           _blog = result['body'] as Map<String, dynamic>;
-          // Ensure comments is a list, even if empty
+          // Sanitize image field from API
+          if (_blog['image'] == 'string' || _blog['image']?.toString().isEmpty == true) {
+            _blog['image'] = null;
+          }
           _blog['comments'] = _blog['comments'] ?? [];
+          _hasFetchedDetails = true;
         });
       } else {
         throw Exception('Failed to load blog details: ${result['body']}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading blog details: $e'),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-          backgroundColor: const Color(0xFFF8BBD0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnackBar('Error loading blog details: $e');
     } finally {
       setState(() {
         _isLoading = false;
+        _hasFetchedDetails = true;
       });
     }
   }
@@ -122,28 +109,12 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         setState(() {
           _isLiked = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please sign in to view like status.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Please sign in to view like status.');
         return;
       }
 
       if (_blog['id'] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Invalid blog ID.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Invalid blog ID.');
         return;
       }
 
@@ -153,7 +124,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       );
 
       if (result['statusCode'] == 200) {
-        final likedBlogIds = (result['body'] as List).map((item) => item['id']?.toString() ?? '').toList();
+        final likedBlogIds = (result['body'] as List)
+            .map((item) => item['id']?.toString() ?? '')
+            .toList();
         setState(() {
           _isLiked = likedBlogIds.contains(_blog['id']?.toString());
         });
@@ -179,101 +152,54 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       const storage = FlutterSecureStorage();
       final accessToken = await storage.read(key: 'access_token');
       if (accessToken == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Sign in to like!'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Sign in to like!');
         return;
       }
 
       if (_blog['id'] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Invalid blog ID.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Invalid blog ID.');
         return;
       }
 
       final result = _isLiked
-          ? await BlogApi.deleteLike(blogId: _blog['id'], accessToken: accessToken)
-          : await BlogApi.likeBlog(blogId: _blog['id'], accessToken: accessToken);
+          ? await BlogApi.deleteLike(
+        blogId: _blog['id'],
+        accessToken: accessToken,
+      )
+          : await BlogApi.likeBlog(
+        blogId: _blog['id'],
+        accessToken: accessToken,
+      );
 
       if (_isLiked && (result['statusCode'] == 200 || result['statusCode'] == 204)) {
         setState(() {
           _blog['likeCount'] = (_blog['likeCount'] ?? 1) - 1;
           _isLiked = false;
         });
-        await _checkIfUserLiked();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Unlike successful!'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        Navigator.pop(context, true);
-      } else if (!_isLiked && (result['statusCode'] == 200 || result['statusCode'] == 201)) {
+        await _fetchBlogDetails(); // Refresh blog details
+        await _checkIfUserLiked(); // Refresh like status
+        _showSnackBar('Unlike successful!');
+      } else if (!_isLiked &&
+          (result['statusCode'] == 200 || result['statusCode'] == 201)) {
         setState(() {
           _blog['likeCount'] = (_blog['likeCount'] ?? 0) + 1;
           _isLiked = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Liked!'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        Navigator.pop(context, true);
-      } else if (!_isLiked && (result['statusCode'] == 400 || result['statusCode'] == 409)) {
-        await _checkIfUserLiked();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Blog already liked, refreshing status.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        await _fetchBlogDetails(); // Refresh blog details
+        _showSnackBar('Liked!');
+      } else if (!_isLiked &&
+          (result['statusCode'] == 400 || result['statusCode'] == 409)) {
+        await _fetchBlogDetails(); // Refresh blog details
+        await _checkIfUserLiked(); // Refresh like status
+        _showSnackBar('Blog already liked, refreshing status.');
       } else {
         final errorMessage = result['body'] is String && result['body'].isNotEmpty
             ? result['body']
             : 'Unknown error';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: $errorMessage'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Failed: $errorMessage');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error toggling like: $e'),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-          backgroundColor: const Color(0xFFF8BBD0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnackBar('Error toggling like: $e');
     } finally {
       setState(() {
         _isTogglingLike = false;
@@ -285,15 +211,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   Future<void> _commentBlog() async {
     final commentText = _commentController.text.trim();
     if (commentText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter a comment'),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-          backgroundColor: const Color(0xFFF8BBD0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnackBar('Please enter a comment');
       return;
     }
 
@@ -306,28 +224,12 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       final accessToken = await storage.read(key: 'access_token');
       final userId = await storage.read(key: 'user_id');
       if (accessToken == null || userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Sign in to comment!'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Sign in to comment!');
         return;
       }
 
       if (_blog['id'] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Invalid blog ID.'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Invalid blog ID.');
         return;
       }
 
@@ -339,50 +241,37 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       );
 
       if (result['statusCode'] == 200 || result['statusCode'] == 201) {
-        // Refetch blog details to sync comments
-        await _fetchBlogDetails();
+        await _fetchBlogDetails(); // Refresh blog details
         setState(() {
           _commentController.clear();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Commented!'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        Navigator.pop(context, true);
+        _showSnackBar('Commented!');
       } else {
         final errorMessage = result['body'] is String && result['body'].isNotEmpty
             ? result['body']
             : 'Unknown error';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to comment: $errorMessage'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-            backgroundColor: const Color(0xFFF8BBD0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _showSnackBar('Failed to comment: $errorMessage');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error commenting: $e'),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 60.0),
-          backgroundColor: const Color(0xFFF8BBD0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnackBar('Error commenting: $e');
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  void _showSnackBar(String message) {
+    print('Showing SnackBar: $message'); // Debug log
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.fixed,
+        backgroundColor: const Color(0xFFF8BBD0), // Sử dụng màu từ theme
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3), // Tự động ẩn sau 3 giây
+      ),
+    );
   }
 
   String _formatDateTime(String? dateTimeStr) {
@@ -408,52 +297,70 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context, _isLiked || _blog['commentCount'] > (widget.blog['commentCount'] ?? 0));
+            Navigator.pop(context,
+                _isLiked || _blog['commentCount'] > (widget.blog['commentCount'] ?? 0));
           },
         ),
       ),
-      body: _isLoading
+      body: _isLoading || !_hasFetchedDetails
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _blog['image'] != null &&
-                _blog['image'].toString() != 'string' &&
-                _blog['image'].toString().startsWith('data:image')
-                ? ClipRRect(
+            ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.memory(
-                base64Decode(_blog['image'].toString().split(',').last),
+              child: _blog['image'] != null &&
+                  _blog['image'].toString().isNotEmpty &&
+                  _blog['image'].toString() != 'string' &&
+                  Uri.tryParse(_blog['image'].toString())?.isAbsolute ==
+                      true &&
+                  (_blog['image'].toString().startsWith('http') ||
+                      _blog['image'].toString().startsWith('https'))
+                  ? Image.network(
+                _blog['image'].toString(),
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                },
                 errorBuilder: (context, error, stackTrace) {
+                  print(
+                      'Image load error: $error, URL: ${_blog['image']}');
                   return Container(
                     height: 200,
                     width: double.infinity,
                     color: Colors.grey[300],
                     child: Center(
                       child: Icon(
-                        Icons.account_box,
+                        Icons.image_not_supported,
                         size: 64,
                         color: Colors.grey[500],
                       ),
                     ),
                   );
                 },
-              ),
-            )
-                : Container(
-              height: 200,
-              width: double.infinity,
-              color: Colors.grey[300],
-              child: Center(
-                child: Icon(
-                  Icons.account_box,
-                  size: 64,
-                  color: Colors.grey[500],
+              )
+                  : Container(
+                height: 200,
+                width: double.infinity,
+                color: Colors.grey[300],
+                child: Center(
+                  child: Icon(
+                    Icons.image_not_supported,
+                    size: 64,
+                    color: Colors.grey[500],
+                  ),
                 ),
               ),
             ),
@@ -513,7 +420,8 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                     padding: const EdgeInsets.only(bottom: 10.0),
                     child: Card(
                       elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Column(
@@ -576,13 +484,14 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading || !_isCommentButtonEnabled ? null : _commentBlog,
+                onPressed:
+                _isLoading || !_isCommentButtonEnabled ? null : _commentBlog,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Comment'),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 16), // Đảm bảo khoảng cách dưới cùng
           ],
         ),
       ),
