@@ -1,6 +1,6 @@
+import 'package:exe_201/chat/chat_page.dart';
 import 'package:exe_201/chat/chatdoctors.dart';
 import 'package:exe_201/blog/blogs.dart';
-import 'package:exe_201/chat/chatAI_page.dart';
 import 'package:exe_201/payment/membership_package_page.dart';
 import 'package:exe_201/nav/journal_page.dart';
 import 'package:flutter/material.dart';
@@ -281,7 +281,7 @@ class _HomePageState extends State<HomePage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ChatAIScreen()),
+            MaterialPageRoute(builder: (context) => const AppointmentsPage()),
           );
         },
         backgroundColor: const Color(0xFFFF6F91),

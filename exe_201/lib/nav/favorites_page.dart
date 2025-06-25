@@ -1,46 +1,74 @@
-import 'package:exe_201/chat/chatAI_page.dart';
+import 'dart:convert';
+import 'package:exe_201/chat/chat_page.dart';
+import 'package:exe_201/chat/chatdoctors.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../blog/blog_detail_screen.dart';
 import './bottom_nav_bar.dart';
 
-class FavoritesPage extends StatelessWidget {
+class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
 
-  final List<Map<String, dynamic>> favoriteBlogs = const [
-    {
-      'title': 'Top 10 Tips for a Healthy Pregnancy',
-      'summary': 'Learn the best practices to ensure a healthy and happy pregnancy journey.',
-      'likes': 1250,
-      'imageUrl': 'https://via.placeholder.com/150',
-    },
-    {
-      'title': 'Nutrition Guide for New Moms',
-      'summary': 'A complete guide to eating well during and after pregnancy.',
-      'likes': 980,
-      'imageUrl': 'https://via.placeholder.com/150',
-    },
-    {
-      'title': 'Preparing for Your Baby’s Arrival',
-      'summary': 'Essential checklist to get ready for your newborn.',
-      'likes': 750,
-      'imageUrl': 'https://via.placeholder.com/150',
-    },
-    {
-      'title': 'Postpartum Recovery Tips',
-      'summary': 'How to take care of yourself after giving birth.',
-      'likes': 620,
-      'imageUrl': 'https://via.placeholder.com/150',
-    },
-  ];
+  @override
+  State<FavoritesPage> createState() => _FavoritesPageState();
+}
+
+class _FavoritesPageState extends State<FavoritesPage> {
+  List<dynamic> topBlogs = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTopBlogs();
+  }
+
+  Future<void> fetchTopBlogs() async {
+    final url = Uri.parse(
+      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/blog?pageIndex=1&pageSize=20&isDescending=false',
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final blogs = data['items'];
+
+        final active = blogs
+            .where((b) => b['status'] == 'Active')
+            .toList();
+
+        active.sort((dynamic a, dynamic b) {
+          final int likeA = a['likeCount'] ?? 0;
+          final int likeB = b['likeCount'] ?? 0;
+          return likeB.compareTo(likeA); // Descending
+        });
+
+
+        setState(() {
+          topBlogs = active.take(5).toList();
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load blogs');
+      }
+    } catch (e) {
+      print('Error fetching blogs: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Get screen dimensions using MediaQuery for responsiveness
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final fontScaleFactor = screenWidth / 400; // Base font scaling (400px as reference)
+    final fontScaleFactor = screenWidth / 400;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9ECEF), // Light pink background
+      backgroundColor: const Color(0xFFF9ECEF),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF9ECEF),
         elevation: 0,
@@ -54,9 +82,7 @@ class FavoritesPage extends StatelessWidget {
             foreground: Paint()
               ..shader = const LinearGradient(
                 colors: [Color(0xFFFF6F91), Color(0xFF8B5CF6)],
-              ).createShader(
-                Rect.fromLTWH(0, 0, 200 * fontScaleFactor, 70),
-              ),
+              ).createShader(Rect.fromLTWH(0, 0, 200, 70)),
           ),
         ),
         actions: [
@@ -65,34 +91,36 @@ class FavoritesPage extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ChatAIScreen()),
+                MaterialPageRoute(builder: (context) => const AppointmentsPage()),
               );
             },
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 1), // Favorites tab
+      bottomNavigationBar: const BottomNavBar(currentIndex: 1),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ChatAIScreen()),
+            MaterialPageRoute(builder: (context) => const AppointmentsPage()),
           );
         },
         backgroundColor: const Color(0xFFFF6F91),
         child: const Icon(Icons.chat_bubble, color: Colors.white),
       ),
-      body: SingleChildScrollView(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: screenWidth * 0.04, // 4% of screen width
-            vertical: screenHeight * 0.02, // 2% of screen height
+            horizontal: screenWidth * 0.04,
+            vertical: screenHeight * 0.02,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Favorite Blogs',
+                'Top 5 Most Liked Blogs',
                 style: TextStyle(
                   fontSize: 20 * fontScaleFactor.clamp(0.9, 1.1),
                   fontWeight: FontWeight.bold,
@@ -101,19 +129,26 @@ class FavoritesPage extends StatelessWidget {
                 ),
               ),
               SizedBox(height: screenHeight * 0.015),
-              ...favoriteBlogs.map((blog) => _buildBlogCard(
-                    context: context,
-                    title: blog['title'],
-                    summary: blog['summary'],
-                    likes: blog['likes'],
-                    imageUrl: blog['imageUrl'],
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Opening "${blog['title']}"...')),
-                      );
-                    },
-                    fontScaleFactor: fontScaleFactor,
-                  )),
+              ...topBlogs.map((blog) => _buildBlogCard(
+                context: context,
+                title: blog['content'] ?? 'No title',
+                summary:
+                'Likes: ${blog['likeCount']} · Comments: ${blog['commentCount']}',
+                likes: blog['likeCount'] ?? 0,
+                imageUrl: blog['image']?.isNotEmpty == true
+                    ? blog['image']
+                    : 'https://via.placeholder.com/150',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BlogDetailScreen(blog: blog),
+                    ),
+                  );
+
+                },
+                fontScaleFactor: fontScaleFactor,
+              )),
             ],
           ),
         ),
@@ -179,6 +214,8 @@ class FavoritesPage extends StatelessWidget {
                         color: Colors.black87,
                         fontFamily: 'Poppins',
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 8 * fontScaleFactor.clamp(0.9, 1.1)),
                     Text(

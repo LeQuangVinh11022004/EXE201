@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../expert/profile_expert.dart' hide ProfilePage;
 import './home_page.dart';
 import './favorites_page.dart';
 import './journal_page.dart';

@@ -376,33 +376,41 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
             ),
             const SizedBox(height: 12),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.favorite,
-                    size: 20,
-                    color: _isLiked ? Colors.redAccent : Colors.black,
-                  ),
-                  onPressed: _isLoading || _isTogglingLike ? null : _toggleLike,
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.favorite,
+                        size: 28,
+                        color: _isLiked ? Colors.redAccent : Colors.grey[700],
+                      ),
+                      onPressed: _isLoading || _isTogglingLike ? null : _toggleLike,
+                    ),
+                    Text(
+                      '${_blog['likeCount'] ?? 0}',
+                      style: theme.textTheme.labelLarge?.copyWith(fontSize: 16),
+                    ),
+                  ],
                 ),
-                Text(
-                  '${_blog['likeCount'] ?? 0}',
-                  style: theme.textTheme.labelMedium,
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.comment,
-                  size: 20,
-                  color: theme.colorScheme.secondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${_blog['commentCount'] ?? 0}',
-                  style: theme.textTheme.labelMedium,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.comment,
+                      size: 28,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_blog['commentCount'] ?? 0}',
+                      style: theme.textTheme.labelLarge?.copyWith(fontSize: 16),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Text(
               'Comments',
               style: theme.textTheme.titleLarge,

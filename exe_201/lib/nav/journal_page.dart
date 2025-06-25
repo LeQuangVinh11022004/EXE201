@@ -1,7 +1,8 @@
-import 'package:exe_201/chat/chatAI_page.dart';
+import 'package:exe_201/chat/chat_page.dart';
 import 'package:exe_201/journal/updateJournalScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../chat/chatdoctors.dart';
 import '/nav/bottom_nav_bar.dart';
 import '/journal/create_journal_screen.dart';
 import '/journal/journal_entry.dart';
@@ -196,10 +197,10 @@ class _JournalPageState extends State<JournalPage> {
               ),
           ),
         ),
-        actions: [
+        actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.chat_sharp),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatAIScreen())),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AppointmentsPage())),
           ),
         ],
       ),

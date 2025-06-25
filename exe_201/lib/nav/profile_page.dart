@@ -1,10 +1,10 @@
-import 'package:exe_201/chat/chatAI_page.dart';
+import 'package:exe_201/chat/chat_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
+import '../chat/chatdoctors.dart';
 import '/profile/edit_profile_screen.dart';
 import '/profile/logout_dialog.dart';
-import '/profile/medical_history_screen.dart';
 import '/journal/journal_provider.dart';
 import 'package:exe_201/payment/card_manager_page.dart';
 import 'package:exe_201/profile/pin_history_screen.dart';
@@ -198,22 +198,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    _buildProfileCard(
-                      context: context,
-                      icon: Icons.local_hospital,
-                      title: 'Medical History',
-                      subtitle: 'View your medical records',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const MedicalHistoryScreen(),
-                          ),
-                        );
-                      },
-                      hasReadButton: true,
-                    ),
                     const SizedBox(height: 15),
                     _buildProfileCard(
                       context: context,
@@ -272,7 +256,7 @@ class _ProfilePageState extends State<ProfilePage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ChatAIScreen()),
+            MaterialPageRoute(builder: (context) => const AppointmentsPage()),
           );
         },
         backgroundColor: const Color(0xFFFF6F91),

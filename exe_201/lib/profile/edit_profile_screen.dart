@@ -302,7 +302,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               DropdownButtonFormField<String>(
                 value: _selectedSex,
                 decoration: InputDecoration(
-                  labelText: 'Sex',
+                  labelText: 'Gender',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
