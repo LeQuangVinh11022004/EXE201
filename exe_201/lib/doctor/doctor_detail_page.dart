@@ -5,7 +5,8 @@ import '../api/appointment_api.dart';
 import '../api/doctor_api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/account_api.dart';
-import 'appointment_detail_screen.dart'; // Thêm import này
+import 'appointment_detail_screen.dart';
+import 'dart:convert';
 
 class DoctorDetailPage extends StatefulWidget {
   final String expertId;
@@ -21,11 +22,15 @@ class DoctorDetailPage extends StatefulWidget {
 
 class _DoctorDetailPageState extends State<DoctorDetailPage> {
   Map<String, dynamic>? doctor;
-  List<Map<String, dynamic>> appointments = [];
+  List<Map<String, dynamic>> allAppointments = []; // Danh sách toàn bộ cuộc hẹn
+  List<Map<String, dynamic>> appointments = []; // Danh sách cuộc hẹn hiện tại theo trang
   bool isLoading = true;
   String? errorMessage;
   String? userId;
-  final FlutterSecureStorage storage = FlutterSecureStorage();
+  final FlutterSecureStorage storage = const FlutterSecureStorage();
+  int _currentPage = 1;
+  int _pageSize = 5;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -62,28 +67,44 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
       }
 
       final fetchedDoctor = await DoctorApi.fetchDoctorById(widget.expertId);
+      final fetchedAppointments = await AppointmentApi.fetchAppointmentsByUserId(
+        userId: userId!,
+        pageIndex: 0, // Không cần pageIndex vì không dùng server-side pagination
+        pageSize: 0, // Không cần pageSize vì lấy toàn bộ
+      );
+
       setState(() {
         doctor = fetchedDoctor;
+        allAppointments = fetchedAppointments.cast<Map<String, dynamic>>(); // Lưu toàn bộ danh sách
+        // Lọc theo expertId
+        final filteredAppointments = allAppointments
+            .where((appt) => appt['expertId'] == widget.expertId)
+            .toList();
+        _totalPages = (filteredAppointments.length / _pageSize).ceil();
+        _updateCurrentAppointments(); // Cập nhật danh sách hiện tại theo trang
+        isLoading = false;
       });
-
-      if (userId != null) {
-        final fetchedAppointments = await AppointmentApi.fetchAppointmentsByUserId(
-          userId: userId!,
-          pageIndex: 0,
-          pageSize: 10,
-        );
-        setState(() {
-          appointments = fetchedAppointments;
-          isLoading = false;
-        });
-      } else {
-        throw Exception('User ID is null');
-      }
     } catch (e) {
       setState(() {
         errorMessage = e.toString().replaceFirst('Exception: ', '');
         isLoading = false;
       });
+    }
+  }
+
+  void _updateCurrentAppointments() {
+    final startIndex = (_currentPage - 1) * _pageSize;
+    final endIndex = startIndex + _pageSize;
+    final filteredAppointments = allAppointments
+        .where((appt) => appt['expertId'] == widget.expertId)
+        .toList();
+    if (startIndex < filteredAppointments.length) {
+      appointments = filteredAppointments.sublist(
+        startIndex,
+        endIndex > filteredAppointments.length ? filteredAppointments.length : endIndex,
+      );
+    } else {
+      appointments = [];
     }
   }
 
@@ -294,13 +315,63 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ...appointments.map((appointment) => _buildAppointmentTile(
-                      time: appointment['timeSlot'] ?? 'N/A',
-                      date: _formatDateTime(appointment['appointmentDate']) ?? 'N/A',
-                      status: appointment['status'] ?? 'N/A',
-                      statusColor: _getStatusColor(appointment['status'] ?? 'N/A'),
-                      appointmentId: appointment['id'] ?? '',
-                    )),
+                    if (appointments.isEmpty)
+                      Text(
+                        'Chưa có cuộc hẹn nào với chuyên gia này.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      )
+                    else
+                      Column(
+                        children: [
+                          ...appointments.map((appointment) => _buildAppointmentTile(
+                            time: appointment['timeSlot'] ?? 'N/A',
+                            date: _formatDateTime(appointment['appointmentDate']) ?? 'N/A',
+                            status: appointment['status'] ?? 'N/A',
+                            statusColor: _getStatusColor(appointment['status'] ?? 'N/A'),
+                            appointmentId: appointment['id'] ?? '',
+                          )),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back),
+                                onPressed: _currentPage > 1
+                                    ? () {
+                                  setState(() {
+                                    _currentPage--;
+                                  });
+                                  _updateCurrentAppointments();
+                                }
+                                    : null,
+                              ),
+                              Text(
+                                'Trang $_currentPage / $_totalPages',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_forward),
+                                onPressed: _currentPage < _totalPages
+                                    ? () {
+                                  setState(() {
+                                    _currentPage++;
+                                  });
+                                  _updateCurrentAppointments();
+                                }
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     const SizedBox(height: 24),
                     Container(
                       width: double.infinity,

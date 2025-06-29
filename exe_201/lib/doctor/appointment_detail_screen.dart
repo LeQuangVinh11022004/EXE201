@@ -17,8 +17,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   Map<String, dynamic>? _appointmentData;
+  List<dynamic> _allFeedbackData = []; // Danh sách toàn bộ phản hồi
+  List<dynamic> _feedbackData = []; // Danh sách phản hồi hiện tại theo trang
   final _feedbackController = TextEditingController();
   int _rating = 0;
+  int _currentPage = 1;
+  int _pageSize = 5; // Số phản hồi trên mỗi trang
+  int _totalPages = 1;
 
   static const String _baseUrl = 'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
 
@@ -54,6 +59,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           _appointmentData = json.decode(response.body);
           _isLoading = false;
         });
+        await _fetchFeedbackData();
       } else {
         setState(() {
           _errorMessage = 'Lỗi khi lấy thông tin cuộc hẹn: ${response.statusCode}';
@@ -67,6 +73,79 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       });
     } finally {
       client.close();
+    }
+  }
+
+  Future<void> _fetchFeedbackData() async {
+    if (_appointmentData?['expertId'] == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final client = http.Client();
+    try {
+      const storage = FlutterSecureStorage();
+      final accessToken = await storage.read(key: 'access_token');
+      if (accessToken == null) {
+        throw Exception('No access token found. Please log in.');
+      }
+
+      _allFeedbackData.clear(); // Xóa dữ liệu cũ
+      int pageIndex = 1;
+      while (true) {
+        final response = await client.get(
+          Uri.parse('$_baseUrl/api/appointment/feedback/expert/${_appointmentData!['expertId']}?pageIndex=$pageIndex&pageSize=10'),
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final items = data['items'] as List;
+          _allFeedbackData.addAll(items);
+          final totalItemsCount = data['totalItemsCount'] as int;
+          _totalPages = (totalItemsCount / _pageSize).ceil();
+
+          if (items.length < 10 || _allFeedbackData.length >= totalItemsCount) break; // Kết thúc khi lấy đủ hoặc không còn dữ liệu
+          pageIndex++;
+        } else {
+          setState(() {
+            _errorMessage = 'Lỗi khi lấy thông tin phản hồi: ${response.statusCode}';
+            _isLoading = false;
+          });
+          break;
+        }
+      }
+
+      setState(() {
+        _currentPage = 1; // Reset về trang 1
+        _updateCurrentFeedbackData();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Lỗi không xác định khi lấy phản hồi: $e';
+        _isLoading = false;
+      });
+    } finally {
+      client.close();
+    }
+  }
+
+  void _updateCurrentFeedbackData() {
+    final startIndex = (_currentPage - 1) * _pageSize;
+    final endIndex = startIndex + _pageSize;
+    if (startIndex < _allFeedbackData.length) {
+      _feedbackData = _allFeedbackData.sublist(
+        startIndex,
+        endIndex > _allFeedbackData.length ? _allFeedbackData.length : endIndex,
+      );
+    } else {
+      _feedbackData = [];
+      _currentPage = _totalPages > 0 ? _totalPages : 1;
     }
   }
 
@@ -174,7 +253,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
         if (currentTime.isBefore(endTime)) {
           setState(() {
-            _errorMessage = 'Vui lòng gửi phản hồi sau khi cuộc họp kết thúc lúc ${endTime.toLocal()}';
+            _errorMessage = 'Vui lòng gửi phản hồi sau khi cuộc hợp kết thúc lúc ${endTime.toLocal()}';
             _isLoading = false;
           });
           return;
@@ -206,6 +285,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           _rating = 0;
           _errorMessage = 'Phản hồi đã được gửi thành công!';
         });
+        await _fetchFeedbackData(); // Refresh feedback after submission
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
             setState(() {
@@ -368,6 +448,99 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
+                        // Feedback Section
+                        Text(
+                          'Phản hồi của chuyên gia',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 10),
+                        if (_feedbackData.isEmpty)
+                          Text(
+                            'Chưa có phản hồi nào cho chuyên gia này.',
+                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                            textAlign: TextAlign.center,
+                          )
+                        else
+                          Column(
+                            children: [
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: _feedbackData.length,
+                                itemBuilder: (context, index) {
+                                  final feedback = _feedbackData[index];
+                                  return Card(
+                                    elevation: theme.cardTheme.elevation!,
+                                    shape: theme.cardTheme.shape,
+                                    margin: const EdgeInsets.symmetric(vertical: 8.0),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: List.generate(5, (starIndex) {
+                                              return Icon(
+                                                Icons.star,
+                                                size: 20,
+                                                color: starIndex < feedback['stars']
+                                                    ? theme.colorScheme.primary
+                                                    : Colors.grey.withOpacity(0.5),
+                                              );
+                                            }),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            feedback['content'] ?? 'N/A',
+                                            style: theme.textTheme.bodyMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Ngày: ${_formatDateTime(feedback['createdTime'])}',
+                                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_back),
+                                    onPressed: _currentPage > 1
+                                        ? () {
+                                      setState(() {
+                                        _currentPage--;
+                                      });
+                                      _updateCurrentFeedbackData();
+                                    }
+                                        : null,
+                                  ),
+                                  Text(
+                                    'Trang $_currentPage / $_totalPages',
+                                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_forward),
+                                    onPressed: _currentPage < _totalPages
+                                        ? () {
+                                      setState(() {
+                                        _currentPage++;
+                                      });
+                                      _updateCurrentFeedbackData();
+                                    }
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 20),
+                        // Submit Feedback Section
                         Text(
                           'Đánh giá cuộc họp',
                           style: theme.textTheme.titleLarge,

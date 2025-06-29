@@ -40,13 +40,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false # vì bạn chỉ cần Android
+  image_path: "assets/logo_app_exe201.jpg" # đường dẫn đến icon của bạn
 
 flutter:
   uses-material-design: true
   assets:
     - assets/momandbaby_login.jpg
     - assets/placeholder_doctor.jpg
-
+    - assets/logo_app_exe201.jpg
 fonts:
   - family: Poppins
     fonts:

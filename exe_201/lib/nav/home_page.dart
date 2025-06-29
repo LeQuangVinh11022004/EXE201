@@ -19,6 +19,9 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> doctors = [];
   bool isLoading = true;
   String? errorMessage;
+  int _currentPage = 1;
+  int _pageSize = 5; // Số bác sĩ mỗi trang
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -34,11 +37,13 @@ class _HomePageState extends State<HomePage> {
     try {
       final data = await DoctorApi.fetchDoctors(
         pageIndex: 1, // Mặc định pageIndex
-        pageSize: 10, // Mặc định pageSize
+        pageSize: 10, // Lấy 10 bác sĩ mỗi lần gọi
         status: 'Active', // Mặc định status
       );
       setState(() {
         doctors = List<Map<String, dynamic>>.from(data['doctors']);
+        _totalPages = (doctors.length / _pageSize).ceil();
+        _updateCurrentDoctorList(); // Cập nhật danh sách hiện tại
         isLoading = false;
       });
     } catch (e) {
@@ -47,6 +52,32 @@ class _HomePageState extends State<HomePage> {
         isLoading = false;
       });
     }
+  }
+
+  void _updateCurrentDoctorList() {
+    final startIndex = (_currentPage - 1) * _pageSize;
+    final endIndex = startIndex + _pageSize;
+    if (startIndex < doctors.length) {
+      final currentDoctors = doctors.sublist(
+        startIndex,
+        endIndex > doctors.length ? doctors.length : endIndex,
+      );
+      setState(() {
+        doctors = currentDoctors; // Cập nhật danh sách hiển thị
+      });
+    } else {
+      setState(() {
+        _currentPage = _totalPages > 0 ? _totalPages : 1;
+        _updateCurrentDoctorList(); // Điều chỉnh về trang cuối
+      });
+    }
+  }
+
+  void _goToPage(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+    _updateCurrentDoctorList();
   }
 
   @override
@@ -196,38 +227,70 @@ class _HomePageState extends State<HomePage> {
                     ),
                   )
                 else if (doctors.isEmpty)
-                  Center(
-                    child: Text(
-                      'No doctors available',
-                      style: TextStyle(
-                        fontSize: 14 * fontScaleFactor.clamp(0.9, 1.1),
-                        color: Colors.grey,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  )
-                else
-                  ...doctors.map((doctor) => Padding(
-                        padding: EdgeInsets.only(bottom: screenHeight * 0.01),
-                        child: _buildDoctorCard(
-                          name: doctor['name'],
-                          description: doctor['description'],
-                          imagePath: doctor['imagePath'],
-                              // Trong _buildDoctorCard của HomePage
-                          // Trong _buildDoctorCard của HomePage
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DoctorDetailPage(
-                                  expertId: doctor['id'], // Đảm bảo doctor['id'] chính là expertId
-                                ),
-                              ),
-                            );
-                          },
-                          fontScaleFactor: fontScaleFactor,
+                    Center(
+                      child: Text(
+                        'No doctors available',
+                        style: TextStyle(
+                          fontSize: 14 * fontScaleFactor.clamp(0.9, 1.1),
+                          color: Colors.grey,
+                          fontFamily: 'Poppins',
                         ),
-                      )),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: [
+                        ...doctors.map((doctor) => Padding(
+                          padding: EdgeInsets.only(bottom: screenHeight * 0.01),
+                          child: _buildDoctorCard(
+                            name: doctor['name'],
+                            description: doctor['description'],
+                            imagePath: doctor['imagePath'],
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DoctorDetailPage(
+                                    expertId: doctor['id'],
+                                  ),
+                                ),
+                              );
+                            },
+                            fontScaleFactor: fontScaleFactor,
+                          ),
+                        )),
+                        SizedBox(height: screenHeight * 0.02),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: _currentPage > 1
+                                  ? () {
+                                _goToPage(_currentPage - 1);
+                              }
+                                  : null,
+                            ),
+                            Text(
+                              'Page $_currentPage of $_totalPages',
+                              style: TextStyle(
+                                fontSize: 14 * fontScaleFactor.clamp(0.9, 1.1),
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.arrow_forward),
+                              onPressed: _currentPage < _totalPages
+                                  ? () {
+                                _goToPage(_currentPage + 1);
+                              }
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                 SizedBox(height: screenHeight * 0.02),
                 GestureDetector(
                   onTap: () {
@@ -291,13 +354,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoryButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required List<Color> gradientColors,
-    required VoidCallback onTap,
-    required double fontScaleFactor,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required String label,
+        required List<Color> gradientColors,
+        required VoidCallback onTap,
+        required double fontScaleFactor,
+      }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(

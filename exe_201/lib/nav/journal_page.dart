@@ -44,6 +44,10 @@ class _JournalPageState extends State<JournalPage> {
   String? _errorMessage;
   Map<String, dynamic>? _journalData;
   bool _shouldUpdateEntry = false;
+  int _currentPage = 1;
+  int _pageSize = 3; // Hiển thị tối đa 3 mục mỗi trang
+  int _totalPages = 1;
+  List<JournalEntryModel> _currentEntries = []; // Danh sách hiện tại sau phân trang
 
   @override
   void initState() {
@@ -85,17 +89,16 @@ class _JournalPageState extends State<JournalPage> {
           }) ?? [],
         );
         for (var entry in entries) {
-          // Chuyển createdTime thành DateTime và chuẩn hóa
           try {
             final createdDate = DateTime.parse(entry.date);
             final normalizedDate = DateTime(createdDate.year, createdDate.month, createdDate.day);
             journalProvider.pinEntry(normalizedDate, entry);
           } catch (e) {
             print('Error parsing createdTime for entry ${entry.journalId}: $e');
-            // Nếu không thể phân tích createdTime, ghim vào ngày hiện tại làm dự phòng
             journalProvider.pinEntry(DateTime.now(), entry);
           }
         }
+        _updateTotalPages(journalProvider.pinnedEntries);
       });
     } catch (e) {
       setState(() {
@@ -106,6 +109,41 @@ class _JournalPageState extends State<JournalPage> {
         _isLoading = false;
       });
     }
+  }
+
+  void _updateTotalPages(Map<DateTime, List<JournalEntryModel>> pinnedEntries) {
+    final allEntries = pinnedEntries.entries.expand((e) => e.value).toList();
+    _totalPages = (allEntries.length / _pageSize).ceil();
+    if (_currentPage > _totalPages) _currentPage = _totalPages; // Đảm bảo trang không vượt quá tổng số trang
+    _updateCurrentEntries(allEntries);
+  }
+
+  void _updateCurrentEntries(List<JournalEntryModel> allEntries) {
+    if (allEntries.isEmpty) {
+      setState(() {
+        _currentEntries = [];
+        _totalPages = 1;
+        _currentPage = 1;
+      });
+      return;
+    }
+    final startIndex = (_currentPage - 1) * _pageSize;
+    final endIndex = startIndex + _pageSize;
+    setState(() {
+      _currentEntries = allEntries.sublist(
+        startIndex.clamp(0, allEntries.length),
+        endIndex.clamp(0, allEntries.length),
+      );
+    });
+  }
+
+  void _goToPage(int page) {
+    if (page < 1 || page > _totalPages) return;
+    setState(() {
+      _currentPage = page;
+    });
+    final journalProvider = Provider.of<JournalProvider>(context, listen: false);
+    _updateCurrentEntries(journalProvider.pinnedEntries.entries.expand((e) => e.value).toList());
   }
 
   Future<void> _createJournalEntry(JournalEntryModel newEntry) async {
@@ -174,7 +212,7 @@ class _JournalPageState extends State<JournalPage> {
           .map((e) => e['entry'] as JournalEntryModel)
           .toList()
         ..sort((a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
-      pinHistory = pinHistory.take(2).toList();
+      _updateTotalPages(journalProvider.pinnedEntries); // Cập nhật tổng số trang
     } catch (e) {
       pinHistory = [];
     }
@@ -183,7 +221,7 @@ class _JournalPageState extends State<JournalPage> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         centerTitle: true,
-          title: Text(
+        title: Text(
           'My Journal',
           style: TextStyle(
             fontSize: 24,
@@ -219,121 +257,156 @@ class _JournalPageState extends State<JournalPage> {
       ),
       body: _isLoading
           ? Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
-              ),
-            )
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+        ),
+      )
           : _errorMessage != null
-              ? Center(
-                  child: Column(
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _errorMessage!,
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _fetchJournalEntries,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      )
+          : SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Recently Pinned',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              _currentEntries.isEmpty
+                  ? Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'No pinned entries yet.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              )
+                  : Column(
+                children: [
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _currentEntries.length,
+                    itemBuilder: (context, index) {
+                      return AnimatedOpacity(
+                        opacity: _shouldUpdateEntry && index == 0 ? 0.7 : 1.0,
+                        duration: const Duration(milliseconds: 300),
+                        child: JournalEntry(
+                          entry: _currentEntries[index],
+                          index: index,
+                          onEdit: () async {
+                            final updatedEntry = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => UpdateJournalScreen(
+                                  existingEntry: _currentEntries[index],
+                                ),
+                              ),
+                            );
+                            if (updatedEntry != null && updatedEntry is JournalEntryModel) {
+                              setState(() {
+                                _shouldUpdateEntry = true;
+                              });
+                              await _updateJournalEntry(updatedEntry);
+                              setState(() {
+                                _shouldUpdateEntry = false;
+                              });
+                            }
+                          },
+                          onDelete: () async {
+                            if (_currentEntries[index].journalId != null) {
+                              await _deleteJournalEntry(_currentEntries[index].journalId!);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Invalid journal ID. Cannot delete entry.')),
+                              );
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        _errorMessage!,
-                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                              color: Theme.of(context).colorScheme.error,
-                              fontSize: 16,
-                            ),
-                        textAlign: TextAlign.center,
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: _currentPage > 1
+                            ? () {
+                          _goToPage(_currentPage - 1);
+                        }
+                            : null,
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _fetchJournalEntries,
-                        child: const Text('Retry'),
+                      Text(
+                        'Page $_currentPage of $_totalPages',
+                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward),
+                        onPressed: _currentPage < _totalPages
+                            ? () {
+                          _goToPage(_currentPage + 1);
+                        }
+                            : null,
                       ),
                     ],
                   ),
-                )
-              : SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recently Pinned',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 12),
-                        pinHistory.isEmpty
-                            ? Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    'No pinned entries yet.',
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ),
-                              )
-                            : Column(
-                                children: List.generate(pinHistory.length, (index) {
-                                  return AnimatedOpacity(
-                                    opacity: _shouldUpdateEntry && index == 0 ? 0.7 : 1.0,
-                                    duration: const Duration(milliseconds: 300),
-                                    child: JournalEntry(
-                                      entry: pinHistory[index],
-                                      index: index,
-                                      onEdit: () async {
-                                        final updatedEntry = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => UpdateJournalScreen(
-                                              existingEntry: pinHistory[index],
-                                            ),
-                                          ),
-                                        );
-                                        if (updatedEntry != null && updatedEntry is JournalEntryModel) {
-                                          setState(() {
-                                            _shouldUpdateEntry = true;
-                                          });
-                                          await _updateJournalEntry(updatedEntry);
-                                          setState(() {
-                                            _shouldUpdateEntry = false;
-                                          });
-                                        }
-                                      },
-                                      onDelete: () async {
-                                        if (pinHistory[index].journalId != null) {
-                                          await _deleteJournalEntry(pinHistory[index].journalId!);
-                                        } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Invalid journal ID. Cannot delete entry.')),
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  );
-                                }),
-                              ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Pregnancy Milestone Calendar',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.info_outline,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const PregnancyMilestonesScreen()),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        CalendarWidget(
-                          pinnedEntries: journalProvider.pinnedEntries,
-                          onPinEntry: journalProvider.pinEntry,
-                        ),
-                      ],
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Pregnancy Milestone Calendar',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PregnancyMilestonesScreen()),
                     ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              CalendarWidget(
+                pinnedEntries: journalProvider.pinnedEntries,
+                onPinEntry: journalProvider.pinEntry,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

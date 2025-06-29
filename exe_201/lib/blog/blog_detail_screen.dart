@@ -20,6 +20,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   late Map<String, dynamic> _blog;
   bool _isLiked = false;
   bool _isCommentButtonEnabled = false;
+  int _currentCommentPage = 1;
+  int _commentPageSize = 5; // Hiển thị 5 comment mỗi trang
+  int _totalCommentPages = 1;
+  List<dynamic> _currentComments = []; // Danh sách 5 comment hiện tại
 
   @override
   void initState() {
@@ -75,6 +79,8 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
             _blog['image'] = null;
           }
           _blog['comments'] = _blog['comments'] ?? [];
+          _totalCommentPages = (_blog['comments'].length / _commentPageSize).ceil();
+          _updateCurrentComments();
           _hasFetchedDetails = true;
         });
       } else {
@@ -94,6 +100,25 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     setState(() {
       _isCommentButtonEnabled = _commentController.text.trim().isNotEmpty;
     });
+  }
+
+  void _updateCurrentComments() {
+    final startIndex = (_currentCommentPage - 1) * _commentPageSize;
+    final endIndex = startIndex + _commentPageSize;
+    setState(() {
+      _currentComments = _blog['comments'].sublist(
+        startIndex,
+        endIndex > _blog['comments'].length ? _blog['comments'].length : endIndex,
+      );
+    });
+  }
+
+  void _goToCommentPage(int page) {
+    if (page < 1 || page > _totalCommentPages) return;
+    setState(() {
+      _currentCommentPage = page;
+    });
+    _updateCurrentComments();
   }
 
   Future<void> _checkIfUserLiked() async {
@@ -244,6 +269,8 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         await _fetchBlogDetails(); // Refresh blog details
         setState(() {
           _commentController.clear();
+          _totalCommentPages = (_blog['comments'].length / _commentPageSize).ceil();
+          _updateCurrentComments();
         });
         _showSnackBar('Commented!');
       } else {
@@ -416,63 +443,95 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            if (_blog['comments'] != null &&
-                (_blog['comments'] as List).isNotEmpty)
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: (_blog['comments'] as List).length,
-                itemBuilder: (context, index) {
-                  final comment = (_blog['comments'] as List)[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10.0),
-                    child: Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+            if (_blog['comments'] != null && (_blog['comments'] as List).isNotEmpty)
+              Column(
+                children: [
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _currentComments.length,
+                    itemBuilder: (context, index) {
+                      final comment = _currentComments[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: Colors.grey[300],
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 20,
-                                    color: Colors.grey[600],
-                                  ),
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Colors.grey[300],
+                                      child: Icon(
+                                        Icons.person,
+                                        size: 20,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      comment['username']?.toString() ?? 'Anonymous',
+                                      style: theme.textTheme.labelLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  comment['username']?.toString() ?? 'Anonymous',
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                                  comment['content']?.toString() ?? '',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Commented: ${_formatDateTime(comment['createdTime'])}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              comment['content']?.toString() ?? '',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Commented: ${_formatDateTime(comment['createdTime'])}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
+                      );
+                    },
+                  ),
+                  if (_totalCommentPages > 1)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: _currentCommentPage > 1
+                                ? () {
+                              _goToCommentPage(_currentCommentPage - 1);
+                            }
+                                : null,
+                          ),
+                          Text(
+                            'Page $_currentCommentPage of $_totalCommentPages',
+                            style: theme.textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: _currentCommentPage < _totalCommentPages
+                                ? () {
+                              _goToCommentPage(_currentCommentPage + 1);
+                            }
+                                : null,
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
+                ],
               )
             else
               Text(

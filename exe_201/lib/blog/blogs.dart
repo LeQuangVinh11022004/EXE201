@@ -19,6 +19,10 @@ class _BlogScreenState extends State<BlogScreen> {
   bool _isCreatingPost = false;
   final _contentController = TextEditingController();
   String? _selectedImagePath;
+  int _currentPage = 1;
+  int _pageSize = 5; // Hiển thị 5 mục mỗi trang
+  int _totalPages = 1;
+  List<Map<String, dynamic>> _currentBlogs = []; // Danh sách hiện tại sau phân trang
 
   @override
   void initState() {
@@ -50,6 +54,8 @@ class _BlogScreenState extends State<BlogScreen> {
         final data = result['body'] as Map<String, dynamic>;
         setState(() {
           _blogs = List<Map<String, dynamic>>.from(data['items'] ?? []);
+          _totalPages = (_blogs.length / _pageSize).ceil();
+          _updateCurrentBlogs();
         });
       } else {
         _showSnackBar('Failed to load blogs: ${result['body']}');
@@ -61,12 +67,31 @@ class _BlogScreenState extends State<BlogScreen> {
     }
   }
 
+  void _updateCurrentBlogs() {
+    final startIndex = (_currentPage - 1) * _pageSize;
+    final endIndex = startIndex + _pageSize;
+    setState(() {
+      _currentBlogs = _blogs.sublist(
+        startIndex,
+        endIndex > _blogs.length ? _blogs.length : endIndex,
+      );
+    });
+  }
+
+  void _goToPage(int page) {
+    if (page < 1 || page > _totalPages) return;
+    setState(() {
+      _currentPage = page;
+    });
+    _updateCurrentBlogs();
+  }
+
   void _showSnackBar(String message) {
     print('Showing SnackBar: $message');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        behavior: SnackBarBehavior.fixed, // Thay đổi từ floating sang fixed
+        behavior: SnackBarBehavior.fixed,
         backgroundColor: const Color(0xFFF8BBD0),
         duration: const Duration(seconds: 3),
       ),
@@ -192,75 +217,110 @@ class _BlogScreenState extends State<BlogScreen> {
         children: [
           RefreshIndicator(
             onRefresh: _fetchBlogs,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _blogs.length,
-              itemBuilder: (context, index) {
-                final blog = _blogs[index];
-                final imageUrl = blog['image']?.toString();
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _currentBlogs.length,
+                    itemBuilder: (context, index) {
+                      final blog = _currentBlogs[index];
+                      final imageUrl = blog['image']?.toString();
 
-                return GestureDetector(
-                  onTap: () async {
-                    final shouldRefresh = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => BlogDetailScreen(blog: blog),
-                      ),
-                    );
-                    if (shouldRefresh == true) {
-                      _fetchBlogs();
-                    }
-                  },
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          imageUrl != null && imageUrl.isNotEmpty
-                              ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              imageUrl,
-                              height: 200,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return _buildImagePlaceholder();
-                              },
-                              errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+                      return GestureDetector(
+                        onTap: () async {
+                          final shouldRefresh = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => BlogDetailScreen(blog: blog),
                             ),
-                          )
-                              : _buildImagePlaceholder(),
-                          const SizedBox(height: 10),
-                          Text(
-                            blog['content'] ?? '',
-                            style: theme.textTheme.titleLarge,
+                          );
+                          if (shouldRefresh == true) {
+                            _fetchBlogs();
+                          }
+                        },
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                imageUrl != null && imageUrl.isNotEmpty
+                                    ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    imageUrl,
+                                    height: 200,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return _buildImagePlaceholder();
+                                    },
+                                    errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+                                  ),
+                                )
+                                    : _buildImagePlaceholder(),
+                                const SizedBox(height: 10),
+                                Text(
+                                  blog['content'] ?? '',
+                                  style: theme.textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Posted at: ${_formatDateTime(blog['createdTime'])}',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.favorite, size: 16, color: Colors.red),
+                                    const SizedBox(width: 5),
+                                    Text('${blog['likeCount'] ?? 0}', style: theme.textTheme.labelLarge),
+                                    const SizedBox(width: 10),
+                                    Icon(Icons.comment, size: 16, color: theme.colorScheme.secondary),
+                                    const SizedBox(width: 5),
+                                    Text('${blog['commentCount'] ?? 0}', style: theme.textTheme.labelLarge),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Posted at: ${_formatDateTime(blog['createdTime'])}',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Icon(Icons.favorite, size: 16, color: Colors.red),
-                              const SizedBox(width: 5),
-                              Text('${blog['likeCount'] ?? 0}', style: theme.textTheme.labelLarge),
-                              const SizedBox(width: 10),
-                              Icon(Icons.comment, size: 16, color: theme.colorScheme.secondary),
-                              const SizedBox(width: 5),
-                              Text('${blog['commentCount'] ?? 0}', style: theme.textTheme.labelLarge),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (_blogs.isNotEmpty && _totalPages > 1)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: _currentPage > 1
+                              ? () {
+                            _goToPage(_currentPage - 1);
+                          }
+                              : null,
+                        ),
+                        Text(
+                          'Page $_currentPage of $_totalPages',
+                          style: theme.textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward),
+                          onPressed: _currentPage < _totalPages
+                              ? () {
+                            _goToPage(_currentPage + 1);
+                          }
+                              : null,
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
+              ],
             ),
           ),
           if (_isCreatingPost)
