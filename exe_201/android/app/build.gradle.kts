@@ -23,6 +23,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -60,10 +61,15 @@ android {
 flutter {
     source = "../.."
 }
-
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    // Firebase BOM để quản lý phiên bản
+    implementation(enforcedPlatform("com.google.firebase:firebase-bom:33.1.2"))
+
+    // Firebase services
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+
+    // Desugaring support
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
