@@ -20,9 +20,8 @@ class _BlogScreenState extends State<BlogScreen> {
   final _contentController = TextEditingController();
   String? _selectedImagePath;
   int _currentPage = 1;
-  int _pageSize = 5; // Hiển thị 5 mục mỗi trang
+  int _pageSize = 5;
   int _totalPages = 1;
-  List<Map<String, dynamic>> _currentBlogs = []; // Danh sách hiện tại sau phân trang
 
   @override
   void initState() {
@@ -49,13 +48,17 @@ class _BlogScreenState extends State<BlogScreen> {
         return;
       }
 
-      final result = await BlogApi.getBlogs(accessToken: accessToken);
+      final result = await BlogApi.getBlogs(
+        accessToken: accessToken,
+        pageIndex: _currentPage,
+        pageSize: _pageSize,
+      );
+
       if (result['statusCode'] == 200) {
         final data = result['body'] as Map<String, dynamic>;
         setState(() {
           _blogs = List<Map<String, dynamic>>.from(data['items'] ?? []);
-          _totalPages = (_blogs.length / _pageSize).ceil();
-          _updateCurrentBlogs();
+          _totalPages = data['totalPagesCount'] ?? 1;
         });
       } else {
         _showSnackBar('Failed to load blogs: ${result['body']}');
@@ -67,23 +70,12 @@ class _BlogScreenState extends State<BlogScreen> {
     }
   }
 
-  void _updateCurrentBlogs() {
-    final startIndex = (_currentPage - 1) * _pageSize;
-    final endIndex = startIndex + _pageSize;
-    setState(() {
-      _currentBlogs = _blogs.sublist(
-        startIndex,
-        endIndex > _blogs.length ? _blogs.length : endIndex,
-      );
-    });
-  }
-
   void _goToPage(int page) {
     if (page < 1 || page > _totalPages) return;
     setState(() {
       _currentPage = page;
     });
-    _updateCurrentBlogs();
+    _fetchBlogs();
   }
 
   void _showSnackBar(String message) {
@@ -170,6 +162,7 @@ class _BlogScreenState extends State<BlogScreen> {
           _isCreatingPost = false;
           _contentController.clear();
           _selectedImagePath = null;
+          _currentPage = 1; // Reset to first page to see the new post
         });
         _fetchBlogs();
       } else {
@@ -199,6 +192,53 @@ class _BlogScreenState extends State<BlogScreen> {
     );
   }
 
+  Widget _buildPaginationControls() {
+    if (_totalPages <= 1) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // First page button
+          IconButton(
+            icon: const Icon(Icons.first_page),
+            onPressed: _currentPage > 1 ? () => _goToPage(1) : null,
+          ),
+          // Previous page button
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_left),
+            onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
+          ),
+          // Page info
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$_currentPage / $_totalPages',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // Next page button
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_right),
+            onPressed: _currentPage < _totalPages ? () => _goToPage(_currentPage + 1) : null,
+          ),
+          // Last page button
+          IconButton(
+            icon: const Icon(Icons.last_page),
+            onPressed: _currentPage < _totalPages ? () => _goToPage(_totalPages) : null,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -206,6 +246,18 @@ class _BlogScreenState extends State<BlogScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Blogs', style: theme.textTheme.headlineMedium),
+        actions: [
+          if (_totalPages > 1)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Text(
+                  'Page $_currentPage of $_totalPages',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => setState(() => _isCreatingPost = true),
@@ -220,11 +272,15 @@ class _BlogScreenState extends State<BlogScreen> {
             child: Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
+                  child: _blogs.isEmpty
+                      ? const Center(
+                    child: Text('No blogs available'),
+                  )
+                      : ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _currentBlogs.length,
+                    itemCount: _blogs.length,
                     itemBuilder: (context, index) {
-                      final blog = _currentBlogs[index];
+                      final blog = _blogs[index];
                       final imageUrl = blog['image']?.toString();
 
                       return GestureDetector(
@@ -240,6 +296,7 @@ class _BlogScreenState extends State<BlogScreen> {
                           }
                         },
                         child: Card(
+                          margin: const EdgeInsets.only(bottom: 16),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -291,42 +348,16 @@ class _BlogScreenState extends State<BlogScreen> {
                     },
                   ),
                 ),
-                if (_blogs.isNotEmpty && _totalPages > 1)
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: _currentPage > 1
-                              ? () {
-                            _goToPage(_currentPage - 1);
-                          }
-                              : null,
-                        ),
-                        Text(
-                          'Page $_currentPage of $_totalPages',
-                          style: theme.textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.arrow_forward),
-                          onPressed: _currentPage < _totalPages
-                              ? () {
-                            _goToPage(_currentPage + 1);
-                          }
-                              : null,
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildPaginationControls(),
               ],
             ),
           ),
           if (_isCreatingPost)
             Container(
+              color: Colors.black54,
               child: Center(
                 child: Card(
+                  margin: const EdgeInsets.all(16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -413,6 +444,13 @@ class _BlogScreenState extends State<BlogScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
+          if (_isLoading && _blogs.isNotEmpty)
+            Container(
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
             ),
         ],

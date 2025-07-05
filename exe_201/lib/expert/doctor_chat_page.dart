@@ -33,6 +33,7 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
   bool isLoading = false;
   late SignalRService signalR;
   String? currentUserId;
+  final Set<String> _messageKeys = {};
 
   @override
   void initState() {
@@ -75,16 +76,32 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
   }
 
   void _handleIncomingMessage(Map<String, dynamic> message) {
-    final now = DateTime.now();
+    final content = message['content'] ?? '';
+    final senderId = message['senderId'];
+    final createdTime = message['createdTime'] ?? '';
+
+    // Tạo "fingerprint" cho message để check trùng
+    final key = '$content|$createdTime|$senderId';
+
+    if (_messageKeys.contains(key)) return; // Bỏ qua nếu trùng
+
+    _messageKeys.add(key);
+
+    final displayTime = createdTime != ''
+        ? DateFormat('d MMM yyyy HH:mm').format(DateTime.parse(createdTime))
+        : DateFormat('d MMM yyyy HH:mm').format(DateTime.now());
+
     setState(() {
       _messages.add({
-        'text': message['content'] ?? '',
-        'senderId': message['senderId'],
-        'time': DateFormat('d MMM yyyy HH:mm').format(now),
+        'text': content,
+        'senderId': senderId,
+        'time': displayTime,
       });
     });
+
     _scrollToBottom();
   }
+
 
   Future<String?> _getAccessToken() async {
     return await storage.read(key: 'access_token');

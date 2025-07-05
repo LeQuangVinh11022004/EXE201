@@ -132,7 +132,24 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Tìm kiếm bác sĩ & blog"),
+        centerTitle: true,
+          backgroundColor: Colors.pink[50],
+          elevation: 0,
+          title: Text(
+            'Search',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              foreground: Paint()
+                ..shader = const LinearGradient(
+                  colors: [Color(0xFFFF6F91), Color(0xFF8B5CF6)],
+                ).createShader(
+                  Rect.fromLTWH(0, 0, 200, 70),
+                ),
+            ),
+          ),
+
         actions: [
           IconButton(
             icon: const Icon(Icons.chat_bubble),

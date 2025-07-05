@@ -1,8 +1,8 @@
+import 'package:exe_201/expert/expert_blog_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/account_api.dart'; // Adjust path as needed
-// Adjust path as needed
 import 'calendar_screen.dart'; // Import the existing CalendarScreen
 import 'profile_expert.dart'; // Import the new ProfilePage
 import 'doctor_appointments_page.dart'; // Import the chat appointments page
@@ -22,6 +22,9 @@ class _ExpertScreenState extends State<ExpertScreen> {
   List<Map<String, dynamic>>? appointmentData;
   bool isLoading = true;
   String? selectedStatus;
+  int _currentPage = 1; // Trang hiện tại
+  int _pageSize = 10; // Số mục trên mỗi trang
+  int _totalPages = 1; // Tổng số trang
 
   @override
   void initState() {
@@ -29,31 +32,48 @@ class _ExpertScreenState extends State<ExpertScreen> {
     _fetchAppointments();
   }
 
-  Future<void> _fetchAppointments({String? status}) async {
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: message.contains('thành công') || message.contains('Đã mở')
+            ? Colors.green
+            : Colors.redAccent,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _fetchAppointments({String? status, int? pageIndex}) async {
     setState(() => isLoading = true);
     try {
       final result = await AccountApi.getAppointmentsPagination(
         accessToken: widget.accessToken,
         expertId: widget.expertId,
         appointmentStarusEnum: status != null ? [status] : ['Pending'],
-        pageIndex: 1,
-        pageSize: 10,
+        pageIndex: pageIndex ?? _currentPage, // Sử dụng trang hiện tại hoặc trang được truyền vào
+        pageSize: _pageSize,
         isDescending: null,
       );
       if (mounted) {
         setState(() {
           if (result['statusCode'] == 200) {
             final body = result['body'];
-            if (body is Map<String, dynamic> && body['items'] != null) {
+            if (body is Map<String, dynamic> && body['items'] != null && body['totalItemsCount'] != null) {
               final items = body['items'];
               appointmentData = items is List
                   ? items.map((item) => item is Map ? Map<String, dynamic>.from(item) : <String, dynamic>{}).toList()
                   : [];
+              final totalItemsCount = body['totalItemsCount'] as int;
+              _totalPages = (totalItemsCount / _pageSize).ceil(); // Tính tổng số trang
             } else {
               appointmentData = [];
+              _totalPages = 1;
             }
           } else {
             appointmentData = [];
+            _totalPages = 1;
           }
           isLoading = false;
         });
@@ -63,13 +83,9 @@ class _ExpertScreenState extends State<ExpertScreen> {
         setState(() {
           isLoading = false;
           appointmentData = [];
+          _totalPages = 1;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error fetching appointments: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        _showSnackBar('Error fetching appointments: $e');
       }
     }
   }
@@ -90,12 +106,7 @@ class _ExpertScreenState extends State<ExpertScreen> {
       }
       throw Exception('Failed to generate meeting link');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating meeting link: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      _showSnackBar('Error generating meeting link: $e');
       return null;
     }
   }
@@ -103,6 +114,7 @@ class _ExpertScreenState extends State<ExpertScreen> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      if (index == 0) _fetchAppointments(); // Làm mới danh sách khi quay lại Appointments
     });
   }
 
@@ -174,12 +186,7 @@ class _ExpertScreenState extends State<ExpertScreen> {
                           if (await canLaunchUrl(url)) {
                             await launchUrl(url, mode: LaunchMode.externalApplication);
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Could not launch $linkMeet'),
-                                backgroundColor: Colors.redAccent,
-                              ),
-                            );
+                            _showSnackBar('Could not launch $linkMeet');
                           }
                         },
                         icon: Icon(Icons.video_call, size: 20),
@@ -272,6 +279,7 @@ class _ExpertScreenState extends State<ExpertScreen> {
             onChanged: (String? newValue) {
               setState(() {
                 selectedStatus = newValue;
+                _currentPage = 1; // Reset về trang 1 khi thay đổi bộ lọc
               });
               _fetchAppointments(status: newValue);
             },
@@ -306,153 +314,164 @@ class _ExpertScreenState extends State<ExpertScreen> {
               ),
             ),
           )
-              : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: appointmentData!.length,
-            itemBuilder: (context, index) {
-              final appointment = appointmentData![index];
-              final dateString = appointment['appointmentDate'] as String? ?? '';
-              DateTime? date;
-              try {
-                date = dateString.isNotEmpty ? DateTime.parse(dateString).toLocal() : null;
-              } catch (e) {
-                date = null;
-              }
-              final timeSlot = appointment['timeSlot'] as String? ?? 'No time available';
-              final status = appointment['status'] as String? ?? 'Unknown';
-              final content = appointment['content'] as String? ?? 'No content';
-              final id = appointment['id'] as String? ?? '';
+              : Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: appointmentData!.length,
+                  itemBuilder: (context, index) {
+                    final appointment = appointmentData![index];
+                    final dateString = appointment['appointmentDate'] as String? ?? '';
+                    DateTime? date;
+                    try {
+                      date = dateString.isNotEmpty ? DateTime.parse(dateString).toLocal() : null;
+                    } catch (e) {
+                      date = null;
+                    }
+                    final timeSlot = appointment['timeSlot'] as String? ?? 'No time available';
+                    final status = appointment['status'] as String? ?? 'Unknown';
+                    final content = appointment['content'] as String? ?? 'No content';
+                    final id = appointment['id'] as String? ?? '';
 
-              return AnimatedContainer(
-                duration: Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => _showAppointmentDetails(context, appointment),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          colors: [Colors.white, Colors.blue.shade50],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        title: Text(
-                          date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Invalid date',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade900,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              content,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
+                    return AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _showAppointmentDetails(context, appointment),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: LinearGradient(
+                                colors: [Colors.white, Colors.blue.shade50],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              timeSlot,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(16),
+                              title: Text(
+                                date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Invalid date',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue.shade900,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Status: $status',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: _getStatusColor(status),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    content,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    timeSlot,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Status: $status',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: _getStatusColor(status),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (String newStatus) async {
-                            try {
-                              await AccountApi.updateAppointmentStatus(
-                                accessToken: widget.accessToken,
-                                id: id,
-                                status: newStatus,
-                              );
-                              if (newStatus == 'Completed') {
-                                final meetingLinkData = await _generateMeetingLink();
-                                if (meetingLinkData != null) {
-                                  final meetingUrl = meetingLinkData['meetingUrl'] as String;
-                                  if (meetingUrl.isNotEmpty) {
-                                    await AccountApi.updateAppointmentMeetingLink(
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (String newStatus) async {
+                                  try {
+                                    await AccountApi.updateAppointmentStatus(
                                       accessToken: widget.accessToken,
                                       id: id,
-                                      linkMeet: meetingUrl,
+                                      status: newStatus,
                                     );
-                                    setState(() {
-                                      appointmentData![index]['linkMeet'] = meetingUrl;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Meeting link generated: $meetingUrl'),
-                                        backgroundColor: Colors.blue.shade600,
-                                      ),
-                                    );
+
+                                    _showSnackBar('Appointment updated to $newStatus');
+                                    _fetchAppointments(status: selectedStatus, pageIndex: _currentPage);
+                                  } catch (e) {
+                                    _showSnackBar('Error: $e');
                                   }
-                                }
-                              }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Appointment updated to $newStatus'),
-                                  backgroundColor: Colors.blue.shade600,
-                                ),
-                              );
-                              _fetchAppointments(status: selectedStatus);
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: $e'),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                            }
-                          },
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                            const PopupMenuItem<String>(
-                              value: 'Canceled',
-                              child: Text('Canceled'),
+                                },
+                                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                  const PopupMenuItem<String>(
+                                    value: 'Canceled',
+                                    child: Text('Canceled'),
+                                  ),
+                                  const PopupMenuItem<String>(
+                                    value: 'Completed',
+                                    child: Text('Complete'),
+                                  ),
+                                  const PopupMenuItem<String>(
+                                    value: 'Pending',
+                                    child: Text('Pending'),
+                                  ),
+                                  const PopupMenuItem<String>(
+                                    value: 'Approved',
+                                    child: Text('Approve'),
+                                  ),
+                                ],
+                                icon: Icon(Icons.more_vert, color: Colors.blue.shade600),
+                              ),
                             ),
-                            const PopupMenuItem<String>(
-                              value: 'Completed',
-                              child: Text('Complete'),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'Pending',
-                              child: Text('Pending'),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'Approved',
-                              child: Text('Approve'),
-                            ),
-                          ],
-                          icon: Icon(Icons.more_vert, color: Colors.blue.shade600),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_ios),
+                      onPressed: _currentPage > 1
+                          ? () {
+                        setState(() {
+                          _currentPage--;
+                        });
+                        _fetchAppointments(status: selectedStatus, pageIndex: _currentPage);
+                      }
+                          : null,
+                      color: Colors.blue.shade600,
+                    ),
+                    Text(
+                      'Page $_currentPage of $_totalPages',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.blue.shade900),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.arrow_forward_ios),
+                      onPressed: _currentPage < _totalPages
+                          ? () {
+                        setState(() {
+                          _currentPage++;
+                        });
+                        _fetchAppointments(status: selectedStatus, pageIndex: _currentPage);
+                      }
+                          : null,
+                      color: Colors.blue.shade600,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -479,9 +498,9 @@ class _ExpertScreenState extends State<ExpertScreen> {
     final List<Widget> pages = [
       _buildAppointmentPage(),
       CalendarScreen(accessToken: widget.accessToken, expertId: widget.expertId),
+      ExpertBlogScreen(accessToken: widget.accessToken),
       DoctorAppointmentsPage(), // Add Chat page
       const ProfilePage(),
-
     ];
 
     return Scaffold(
@@ -516,6 +535,10 @@ class _ExpertScreenState extends State<ExpertScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.book), // Chat icon
+            label: 'Blog',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat), // Chat icon

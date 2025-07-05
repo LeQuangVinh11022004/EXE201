@@ -70,10 +70,12 @@ class BlogApi {
 
   static Future<Map<String, dynamic>> getBlogs({
     required String accessToken,
+    int pageIndex = 1,
+    int pageSize = 5,
   }) async {
     final client = await _getClient();
     try {
-      final uri = Uri.parse('$baseUrl/api/blog');
+      final uri = Uri.parse('$baseUrl/api/blog?pageIndex=$pageIndex&pageSize=$pageSize');
       final response = await client
           .get(
         uri,

@@ -53,50 +53,58 @@ class PregnancyMilestonesScreen extends StatelessWidget {
               _buildMilestoneItem(
                 context: context,
                 icon: Icons.local_hospital,
-                text: '8 weeks (First Trimester) Not pregnancy-related medical check-up',
-                details: 'Schedule a general health check-up to ensure you are in good health before focusing on pregnancy-specific care.',
+                text: '8 weeks (First Trimester)\nNot pregnancy-related medical check-up',
+                details:
+                'Schedule a general health check-up to ensure you are in good health before focusing on pregnancy-specific care.',
               ),
               _buildMilestoneItem(
                 context: context,
                 icon: Icons.local_hospital,
                 text: '13 weeks (First Trimester)',
-                details: 'First trimester screening to assess the baby’s development and health.',
+                details:
+                'First trimester screening to assess the baby’s development and health.',
               ),
               _buildMilestoneItem(
                 context: context,
                 icon: Icons.local_hospital,
-                text: '20 weeks (Second Trimester) 20-week scan',
-                details: 'Anatomy scan to check the baby’s development and identify any potential issues.',
+                text: '20 weeks (Second Trimester)\n20-week scan',
+                details:
+                'Anatomy scan to check the baby’s development and identify any potential issues.',
               ),
               _buildMilestoneItem(
                 context: context,
-                icon: Icons.local_hospital,
-                text: '28 weeks (Third Trimester) Baby shower',
-                details: 'Celebrate with friends and family as you prepare for the baby’s arrival.',
+                icon: Icons.cake,
+                text: '28 weeks (Third Trimester)\nBaby shower',
+                details:
+                'Celebrate with friends and family as you prepare for the baby’s arrival.',
               ),
               _buildMilestoneItem(
                 context: context,
-                icon: Icons.local_hospital,
-                text: '32 weeks (Third Trimester) Not later than 34 weeks prepare nursery for baby',
-                details: 'Set up the baby’s nursery with essential items like a crib, changing table, and clothes.',
+                icon: Icons.chair_alt,
+                text: '32 weeks (Third Trimester)\nPrepare nursery for baby',
+                details:
+                'Set up the baby’s nursery with essential items like a crib, changing table, and clothes before week 34.',
               ),
               _buildMilestoneItem(
                 context: context,
-                icon: Icons.local_hospital,
-                text: '36 weeks (Third Trimester) Last ultrasound (if necessary)',
-                details: 'Final ultrasound to check the baby’s position and health before birth.',
+                icon: Icons.monitor_heart,
+                text: '36 weeks (Third Trimester)\nLast ultrasound (if necessary)',
+                details:
+                'Final ultrasound to check the baby’s position and health before birth.',
               ),
               _buildMilestoneItem(
                 context: context,
-                icon: Icons.local_hospital,
-                text: '36 weeks (Third Trimester) Gender reveal party',
-                details: 'A fun event to share the baby’s gender with loved ones.',
+                icon: Icons.cake_outlined,
+                text: '36 weeks (Third Trimester)\nGender reveal party',
+                details:
+                'A fun event to share the baby’s gender with loved ones.',
               ),
               _buildMilestoneItem(
                 context: context,
-                icon: Icons.local_hospital,
-                text: '40 weeks (Full Term) When baby is ready (Can be earlier or later)',
-                details: 'Prepare for delivery, which can happen between 37 and 42 weeks.',
+                icon: Icons.baby_changing_station,
+                text: '40 weeks (Full Term)\nWhen baby is ready',
+                details:
+                'Prepare for delivery, which can happen between 37 and 42 weeks.',
               ),
               const SizedBox(height: 20),
               Align(
@@ -116,7 +124,8 @@ class PregnancyMilestonesScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
                   child: const Text(
                     'Back to Journal',
@@ -146,7 +155,10 @@ class PregnancyMilestonesScreen extends StatelessWidget {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(text),
+            title: Text(
+              text,
+              style: const TextStyle(fontSize: 16),
+            ),
             content: Text(details),
             actions: [
               TextButton(
@@ -164,8 +176,8 @@ class PregnancyMilestonesScreen extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: Colors.grey,
-              size: 24,
+              color: Colors.pink[300],
+              size: 26,
             ),
             const SizedBox(width: 10),
             Expanded(

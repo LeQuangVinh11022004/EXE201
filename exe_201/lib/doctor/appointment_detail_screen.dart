@@ -15,14 +15,13 @@ class AppointmentDetailScreen extends StatefulWidget {
 
 class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   bool _isLoading = false;
-  String? _errorMessage;
   Map<String, dynamic>? _appointmentData;
-  List<dynamic> _allFeedbackData = []; // Danh sách toàn bộ phản hồi
-  List<dynamic> _feedbackData = []; // Danh sách phản hồi hiện tại theo trang
+  List<dynamic> _allFeedbackData = [];
+  List<dynamic> _feedbackData = [];
   final _feedbackController = TextEditingController();
   int _rating = 0;
   int _currentPage = 1;
-  int _pageSize = 5; // Số phản hồi trên mỗi trang
+  int _pageSize = 5;
   int _totalPages = 1;
 
   static const String _baseUrl = 'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
@@ -33,10 +32,22 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     _fetchAppointmentDetails();
   }
 
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: message.contains('thành công') || message.contains('Đã mở')
+            ? Colors.green // Màu xanh cho thành công
+            : Colors.red, // Màu đỏ cho lỗi
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating, // Tùy chọn để SnackBar nổi
+      ),
+    );
+  }
+
   Future<void> _fetchAppointmentDetails() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     final client = http.Client();
@@ -61,17 +72,14 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         });
         await _fetchFeedbackData();
       } else {
-        setState(() {
-          _errorMessage = 'Lỗi khi lấy thông tin cuộc hẹn: ${response.statusCode}';
-          _isLoading = false;
-        });
+        _showSnackBar('Lỗi khi lấy thông tin cuộc hẹn: ${response.statusCode}');
       }
     } catch (e) {
+      _showSnackBar('Lỗi không xác định: $e');
+    } finally {
       setState(() {
-        _errorMessage = 'Lỗi không xác định: $e';
         _isLoading = false;
       });
-    } finally {
       client.close();
     }
   }
@@ -81,7 +89,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     final client = http.Client();
@@ -92,7 +99,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         throw Exception('No access token found. Please log in.');
       }
 
-      _allFeedbackData.clear(); // Xóa dữ liệu cũ
+      _allFeedbackData.clear();
       int pageIndex = 1;
       while (true) {
         final response = await client.get(
@@ -109,27 +116,21 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           final totalItemsCount = data['totalItemsCount'] as int;
           _totalPages = (totalItemsCount / _pageSize).ceil();
 
-          if (items.length < 10 || _allFeedbackData.length >= totalItemsCount) break; // Kết thúc khi lấy đủ hoặc không còn dữ liệu
+          if (items.length < 10 || _allFeedbackData.length >= totalItemsCount) break;
           pageIndex++;
         } else {
-          setState(() {
-            _errorMessage = 'Lỗi khi lấy thông tin phản hồi: ${response.statusCode}';
-            _isLoading = false;
-          });
+          _showSnackBar('Lỗi khi lấy thông tin phản hồi: ${response.statusCode}');
           break;
         }
       }
 
       setState(() {
-        _currentPage = 1; // Reset về trang 1
+        _currentPage = 1;
         _updateCurrentFeedbackData();
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Lỗi không xác định khi lấy phản hồi: $e';
-        _isLoading = false;
-      });
+      _showSnackBar('Lỗi không xác định khi lấy phản hồi: $e');
     } finally {
       client.close();
     }
@@ -152,7 +153,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   Future<void> _fetchAndOpenMeetingLink() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     final client = http.Client();
@@ -177,57 +177,43 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         final currentTime = DateTime.now();
 
         if (currentTime.isBefore(appointmentTime)) {
-          setState(() {
-            _errorMessage = 'Cuộc họp sẽ bắt đầu lúc ${appointmentTime.toLocal()}';
-            _isLoading = false;
-          });
+          _showSnackBar('Cuộc họp sẽ bắt đầu lúc ${appointmentTime.toLocal()}');
           return;
         }
 
         if (meetingUrl.isEmpty) {
-          setState(() {
-            _errorMessage = 'Không tìm thấy URL cuộc họp trong dữ liệu cuộc hẹn';
-            _isLoading = false;
-          });
+          _showSnackBar('Không tìm thấy URL cuộc họp trong dữ liệu cuộc hẹn');
           return;
         }
 
         final Uri uri = Uri.parse(meetingUrl);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
+          _showSnackBar('Đã mở liên kết cuộc họp thành công!');
         } else {
-          setState(() {
-            _errorMessage = 'Không thể mở URL: $meetingUrl';
-          });
+          _showSnackBar('Không thể mở URL: $meetingUrl');
         }
       } else {
-        setState(() {
-          _errorMessage = 'Lỗi khi lấy thông tin cuộc hẹn: ${appointmentResponse.statusCode}';
-        });
+        _showSnackBar('Lỗi khi lấy thông tin cuộc hẹn: ${appointmentResponse.statusCode}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Lỗi không xác định: $e';
-      });
+      _showSnackBar('Lỗi không xác định: $e');
     } finally {
-      client.close();
       setState(() {
         _isLoading = false;
       });
+      client.close();
     }
   }
 
   Future<void> _submitFeedback() async {
     if (_feedbackController.text.trim().isEmpty || _rating == 0) {
-      setState(() {
-        _errorMessage = 'Vui lòng nhập nội dung phản hồi và đánh giá sao.';
-      });
+      _showSnackBar('Vui lòng nhập nội dung phản hồi và đánh giá sao.');
       return;
     }
 
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     final client = http.Client();
@@ -252,17 +238,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         final currentTime = DateTime.now();
 
         if (currentTime.isBefore(endTime)) {
-          setState(() {
-            _errorMessage = 'Vui lòng gửi phản hồi sau khi cuộc hợp kết thúc lúc ${endTime.toLocal()}';
-            _isLoading = false;
-          });
+          _showSnackBar('Vui lòng gửi phản hồi sau khi cuộc hợp kết thúc lúc ${endTime.toLocal()}');
           return;
         }
       } else {
-        setState(() {
-          _errorMessage = 'Lỗi khi kiểm tra thời gian cuộc hẹn: ${appointmentResponse.statusCode}';
-          _isLoading = false;
-        });
+        _showSnackBar('Lỗi khi kiểm tra thời gian cuộc hẹn: ${appointmentResponse.statusCode}');
         return;
       }
 
@@ -283,30 +263,102 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         setState(() {
           _feedbackController.clear();
           _rating = 0;
-          _errorMessage = 'Phản hồi đã được gửi thành công!';
+          _isLoading = false;
         });
-        await _fetchFeedbackData(); // Refresh feedback after submission
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() {
-              _errorMessage = null;
-            });
-          }
-        });
+        _showSnackBar('Phản hồi đã được gửi thành công!');
+        await _fetchFeedbackData();
       } else {
-        setState(() {
-          _errorMessage = 'Lỗi khi gửi phản hồi: ${response.statusCode} - ${response.body}';
-        });
+        _showSnackBar('Lỗi khi gửi phản hồi: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Lỗi không xác định: $e';
-      });
+      _showSnackBar('Lỗi không xác định: $e');
     } finally {
-      client.close();
       setState(() {
         _isLoading = false;
       });
+      client.close();
+    }
+  }
+
+  Future<void> _createChatHub() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final client = http.Client();
+    try {
+      const storage = FlutterSecureStorage();
+      final accessToken = await storage.read(key: 'access_token');
+      if (accessToken == null) {
+        throw Exception('No access token found. Please log in.');
+      }
+
+      if (_appointmentData == null || _appointmentData!['expertId'] == null || _appointmentData!['content'] == null) {
+        throw Exception('Appointment data or expertId/content is missing. Please ensure appointment details are loaded.');
+      }
+
+      final expertId = _appointmentData!['expertId'].toString();
+      final expertResponse = await client.get(
+        Uri.parse('$_baseUrl/api/expert/$expertId'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      if (expertResponse.statusCode == 200) {
+        final expertData = jsonDecode(expertResponse.body);
+        final userId = expertData['userId'].toString();
+
+        String nameChatHub = _appointmentData!['content'].toString().trim();
+        if (nameChatHub.isEmpty) {
+          nameChatHub = 'chat_default_${DateTime.now().millisecondsSinceEpoch}';
+        } else {
+          nameChatHub = nameChatHub.replaceAll(' ', '_');
+          nameChatHub = '${nameChatHub}_${DateTime.now().millisecondsSinceEpoch}'.substring(0, nameChatHub.length > 50 ? 50 : nameChatHub.length);
+        }
+
+        if (nameChatHub.isEmpty) {
+          throw Exception('Chat hub name cannot be empty.');
+        }
+
+        final uri = Uri.parse('$_baseUrl/api/chat/hub')
+            .replace(queryParameters: {
+          'secondUserId': userId,
+          'nameChatHub': nameChatHub,
+        });
+
+        print('Request URL: $uri');
+
+        final response = await client.post(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          _showSnackBar('Chat hub đã được tạo thành công!');
+        } else if (response.statusCode == 409) {
+          _showSnackBar('Chat hub đã tồn tại. Vui lòng thử lại với tên khác hoặc liên hệ hỗ trợ.');
+        } else {
+          final bodyText = response.body;
+          if (bodyText.trim().isNotEmpty) {
+            final errorBody = jsonDecode(bodyText);
+            _showSnackBar('Lỗi khi tạo chat hub: ${response.statusCode} - ${errorBody.toString()}');
+          } else {
+            _showSnackBar('Lỗi khi tạo chat hub: ${response.statusCode} - Không có dữ liệu phản hồi.');
+          }
+        }
+      } else {
+        throw Exception('Lỗi khi lấy thông tin chuyên gia: ${expertResponse.statusCode}');
+      }
+    } catch (e) {
+      _showSnackBar('Lỗi khi tạo chat hub: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+      client.close();
     }
   }
 
@@ -357,29 +409,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                   ),
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : _errorMessage != null
-                      ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchAppointmentDetails,
-                          child: const Text('Thử lại'),
-                        ),
-                      ],
-                    ),
-                  )
                       : SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Appointment Details
                         Card(
                           elevation: theme.cardTheme.elevation!,
                           shape: theme.cardTheme.shape,
@@ -403,7 +436,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        // Meeting Section
                         Icon(
                           Icons.favorite,
                           size: 40,
@@ -415,15 +447,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           style: theme.textTheme.headlineMedium,
                         ),
                         const SizedBox(height: 24),
-                        if (_errorMessage != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Text(
-                              _errorMessage!,
-                              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
                         Card(
                           elevation: theme.cardTheme.elevation!,
                           shape: theme.cardTheme.shape,
@@ -443,12 +466,24 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                                     style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onPrimary),
                                   ),
                                 ),
+                                const SizedBox(height: 10),
+                                ElevatedButton(
+                                  onPressed: _isLoading || _appointmentData == null ? null : _createChatHub,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: theme.colorScheme.secondary,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                                  ),
+                                  child: Text(
+                                    'Tạo Chat Hub',
+                                    style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onPrimary),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        // Feedback Section
                         Text(
                           'Phản hồi của chuyên gia',
                           style: theme.textTheme.titleLarge,
@@ -540,7 +575,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                             ],
                           ),
                         const SizedBox(height: 20),
-                        // Submit Feedback Section
                         Text(
                           'Đánh giá cuộc họp',
                           style: theme.textTheme.titleLarge,

@@ -14,6 +14,7 @@ class ChatPage extends StatefulWidget {
   final String chatHubId;
   final VoidCallback onClose;
 
+
   const ChatPage({
     super.key,
     required this.doctorName,
@@ -32,6 +33,7 @@ class _ChatPageState extends State<ChatPage> {
   final storage = const FlutterSecureStorage();
   bool isLoading = false;
   late SignalRService signalR;
+  final Set<String> _messageKeys = {};
 
   @override
   void initState() {
@@ -46,15 +48,26 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _handleIncomingMessage(Map<String, dynamic> message) {
-    final currentTime = DateFormat('d MMM yyyy HH:mm').format(DateTime.now());
+    final content = message['content'] ?? '';
+    final createdTime = message['createdTime'] ?? '';
+    final key = '$content|$createdTime';
+
+    if (_messageKeys.contains(key)) return; // tránh trùng lặp
+
+    _messageKeys.add(key);
+
+    final time = createdTime != ''
+        ? DateFormat('d MMM yyyy HH:mm').format(DateTime.parse(createdTime))
+        : DateFormat('d MMM yyyy HH:mm').format(DateTime.now());
+
     setState(() {
       _messages.add({
-        'text': message['content'] ?? '',
+        'text': content,
         'isSentByUser': false,
-        'time': currentTime,
+        'time': time,
       });
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    _scrollToBottom();
   }
 
   Future<String?> _getAccessToken() async {
