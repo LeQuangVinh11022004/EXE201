@@ -5,9 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:app_links/app_links.dart';
 
+import '../config.dart';
+
 class BlogApi {
   static const String baseUrl =
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+      '${AppConfig.apiBaseUrl}';
   static http.Client? _client;
   static AppLinks? _appLinks;
 

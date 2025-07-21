@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '/nav/bottom_nav_bar.dart'; // Import BottomNavBar
 import '../auth/login.dart'; // Import LoginScreen để xử lý đăng xuất
-
+import 'package:exe_201/config.dart';
 class CardManagerPage extends StatefulWidget {
   const CardManagerPage({super.key});
 
@@ -25,7 +25,7 @@ class _CardManagerPageState extends State<CardManagerPage> {
   bool hasPrevious = false;
 
   // Constant base URL for API
-  static const String _baseUrl = 'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+  static const String _baseUrl = '${AppConfig.apiBaseUrl}';
 
   @override
   void initState() {

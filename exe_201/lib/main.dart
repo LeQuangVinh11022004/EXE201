@@ -8,9 +8,11 @@ import '/journal/journal_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Set system UI cho toàn app - transparent để LoginScreen tự control
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.pink,
+    statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
   ));
 
   runApp(

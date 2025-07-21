@@ -3,7 +3,7 @@ import 'package:signalr_netcore/hub_connection.dart';
 import 'package:signalr_netcore/hub_connection_builder.dart';
 import 'package:signalr_netcore/http_connection_options.dart';
 import 'package:signalr_netcore/itransport.dart';
-
+import 'package:exe_201/config.dart';
 class SignalRService {
   static final SignalRService _instance = SignalRService._internal();
   factory SignalRService() => _instance;
@@ -21,7 +21,7 @@ class SignalRService {
     int retryCount = 0;
     const maxRetries = 3;
     const timeoutDuration = Duration(seconds: 45);
-    const baseUrl = 'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/chathub';
+    const baseUrl = '${AppConfig.apiBaseUrl}/chathub';
 
     final accessToken = await storage.read(key: 'access_token');
     if (accessToken == null) {

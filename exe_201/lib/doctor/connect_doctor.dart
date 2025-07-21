@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/appointment_api.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:exe_201/config.dart';
 class ConnectDoctorScreen extends StatefulWidget {
   final String expertId;
 
@@ -144,7 +144,7 @@ class _ConnectDoctorScreenState extends State<ConnectDoctorScreen> {
       // Gọi API để lấy meeting link
       final client = http.Client();
       final meetLinkResponse = await client.get(
-        Uri.parse('https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/helpper/meet-link'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/helpper/meet-link'),
         headers: {
           'Authorization': 'Bearer $accessToken',
         },

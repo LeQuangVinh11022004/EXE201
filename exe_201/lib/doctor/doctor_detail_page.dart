@@ -43,6 +43,7 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
       isLoading = true;
       errorMessage = null;
     });
+
     try {
       final accessToken = await storage.read(key: 'access_token');
       if (accessToken == null) {
@@ -55,33 +56,46 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
         if (body == null || body is! Map) {
           throw Exception('Invalid user data response: Body is null or not a Map');
         }
-        if (body['id'] != null) {
-          userId = body['id'] as String;
-        } else {
-          throw Exception('User ID not found in response');
-        }
+        userId = body['id'];
       } else {
         final body = userData['body'];
-        final errorMessage = body is Map ? body['message'] : 'Unknown error';
-        throw Exception('Failed to fetch user data: $errorMessage');
+        throw Exception('Failed to fetch user data: ${body['message'] ?? 'Unknown error'}');
       }
 
       final fetchedDoctor = await DoctorApi.fetchDoctorById(widget.expertId);
-      final fetchedAppointments = await AppointmentApi.fetchAppointmentsByUserId(
-        userId: userId!,
-        pageIndex: 0, // Không cần pageIndex vì không dùng server-side pagination
-        pageSize: 0, // Không cần pageSize vì lấy toàn bộ
-      );
+
+      // 🌀 Load nhiều trang appointment
+      int pageIndex = 0;
+      int pageSize = 10;
+      List<Map<String, dynamic>> fetchedAppointments = [];
+      bool keepFetching = true;
+
+      while (keepFetching) {
+        final page = await AppointmentApi.fetchAppointmentsByUserId(
+          userId: userId!,
+          pageIndex: pageIndex,
+          pageSize: pageSize,
+        );
+
+        fetchedAppointments.addAll(page);
+
+        if (page.length < pageSize) {
+          keepFetching = false;
+        } else {
+          pageIndex++;
+        }
+      }
+
+      final filteredAppointments = fetchedAppointments
+          .where((appt) => appt['expertId'] == widget.expertId)
+          .toList();
 
       setState(() {
         doctor = fetchedDoctor;
-        allAppointments = fetchedAppointments.cast<Map<String, dynamic>>(); // Lưu toàn bộ danh sách
-        // Lọc theo expertId
-        final filteredAppointments = allAppointments
-            .where((appt) => appt['expertId'] == widget.expertId)
-            .toList();
+        allAppointments = filteredAppointments;
         _totalPages = (filteredAppointments.length / _pageSize).ceil();
-        _updateCurrentAppointments(); // Cập nhật danh sách hiện tại theo trang
+        _currentPage = 1;
+        _updateCurrentAppointments();
         isLoading = false;
       });
     } catch (e) {
@@ -91,6 +105,7 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
       });
     }
   }
+
 
   void _updateCurrentAppointments() {
     final startIndex = (_currentPage - 1) * _pageSize;
@@ -392,13 +407,14 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ConnectDoctorScreen(expertId: widget.expertId),
                             ),
                           );
+                          await _fetchUserIdAndData();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,

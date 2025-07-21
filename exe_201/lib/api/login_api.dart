@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/io_client.dart';
+import 'package:exe_201/config.dart';
 
 class LoginApi {
-  static const String _baseUrl =
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+  static const String _baseUrl = '${AppConfig.apiBaseUrl}';
 
   // Helper method to create a secure HttpClient
   static Future<IOClient> _createClient() async {
@@ -25,21 +25,19 @@ class LoginApi {
     try {
       final client = await _createClient();
 
-
-
       final response = await client
           .post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true', // Thêm header này
         },
         body: body,
       )
           .timeout(const Duration(seconds: 30), onTimeout: () {
         throw Exception('Request timed out after 30 seconds');
       });
-
 
       dynamic responseBody;
       try {

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:exe_201/config.dart';
 class AppointmentDetailScreen extends StatefulWidget {
   final String appointmentId;
 
@@ -24,7 +24,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   int _pageSize = 5;
   int _totalPages = 1;
 
-  static const String _baseUrl = 'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+  static const String _baseUrl = '${AppConfig.apiBaseUrl}';
 
   @override
   void initState() {

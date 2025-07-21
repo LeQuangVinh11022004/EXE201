@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:http/io_client.dart' as io_client;
 import 'package:http/io_client.dart';
 
+import '../config.dart';
+
 class RegisterApi {
   static const String _baseUrl =
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+      '${AppConfig.apiBaseUrl}';
 
   static Future<IOClient> _getClient() async {
     final httpClient = HttpClient()

@@ -8,7 +8,7 @@ import '../api/chat_api.dart';
 import '../api/account_api.dart';
 import '../nav/bottom_nav_bar.dart';
 import '../service/signalRService.dart';
-
+import 'package:exe_201/config.dart';
 class DoctorChatPage extends StatefulWidget {
   final String doctorName;
   final String chatHubId;
@@ -149,7 +149,7 @@ class _DoctorChatPageState extends State<DoctorChatPage> {
 
     setState(() => isLoading = false);
     final url = Uri.parse(
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/chat/message',
+      '${AppConfig.apiBaseUrl}/api/chat/message',
     );
     final client = IOClient(HttpClient()..badCertificateCallback = (_, __, ___) => true);
 

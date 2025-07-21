@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../blog/blog_detail_screen.dart';
 import './bottom_nav_bar.dart';
-
+import 'package:exe_201/config.dart';
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
 
@@ -25,7 +25,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> fetchTopBlogs() async {
     final url = Uri.parse(
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/blog?pageIndex=1&pageSize=20&isDescending=false',
+      '${AppConfig.apiBaseUrl}/api/blog?pageIndex=1&pageSize=20&isDescending=false',
     );
 
     try {

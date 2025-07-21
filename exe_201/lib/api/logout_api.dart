@@ -4,10 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart';
 import 'package:http/io_client.dart';
 
+import '../config.dart';
+
 class LogoutApi {
   static const storage = FlutterSecureStorage();
-  static const String _baseUrl =
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+  static const String _baseUrl = '${AppConfig.apiBaseUrl}';
 
   static Future<Map<String, dynamic>> logout() async {
     final url = Uri.parse('$_baseUrl/api/authen/logout');

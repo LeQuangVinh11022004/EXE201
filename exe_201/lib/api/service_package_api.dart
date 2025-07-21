@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+import '../config.dart';
+
 class ServicePackageApi {
   static const String _baseUrl =
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+      '${AppConfig.apiBaseUrl}';
   static const storage = FlutterSecureStorage();
 
   static http.Client _getClient() {

@@ -4,7 +4,7 @@ import 'package:exe_201/nav/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:exe_201/config.dart';
 import '../blog/blog_detail_screen.dart';
 import '../doctor/doctor_detail_page.dart';
 
@@ -77,7 +77,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<Map<String, dynamic>> _searchBlogs(String searchString, String accessToken) async {
-    final url = Uri.parse('https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/blog?searchString=$searchString&pageIndex=1&pageSize=10');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/api/blog?searchString=$searchString&pageIndex=1&pageSize=10');
     final response = await http.get(
       url,
       headers: {'Authorization': 'Bearer $accessToken'},
@@ -97,7 +97,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<Map<String, dynamic>> _searchExperts(String searchString, String accessToken) async {
-    final url = Uri.parse('https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net/api/expert?searchString=$searchString&pageIndex=1&pageSize=10');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/api/expert?searchString=$searchString&pageIndex=1&pageSize=10');
     final response = await http.get(
       url,
       headers: {'Authorization': 'Bearer $accessToken'},

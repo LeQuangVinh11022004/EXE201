@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/io_client.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:exe_201/config.dart';
 class AccountApi {
-  static const String _baseUrl =
-      'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+  static const String _baseUrl = '${AppConfig.apiBaseUrl}';
+
 
   static Future<IOClient> _createClient() async {
     final ioClient = HttpClient()

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:exe_201/config.dart';
 class MeetLinkScreen extends StatefulWidget {
   final String appointmentId;
 
@@ -22,7 +22,7 @@ class _MeetLinkScreenState extends State<MeetLinkScreen> {
   int _rating = 0;
 
   // Constant base URL for API
-  static const String _baseUrl = 'https://mom-and-baby-e7dnhsgjcpgdb8cc.southeastasia-01.azurewebsites.net';
+  static const String _baseUrl = '${AppConfig.apiBaseUrl}';
 
   Future<void> _fetchAndOpenMeetingLink() async {
     setState(() {

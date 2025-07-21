@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 ThemeData appTheme() {
   return ThemeData(
@@ -54,6 +55,12 @@ ThemeData appTheme() {
         fontFamily: 'Poppins',
       ),
       iconTheme: IconThemeData(color: Color.fromARGB(255, 13, 216, 243)), // Light cyan
+      // QUAN TRỌNG: Thêm systemOverlayStyle để control status bar
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: Color.fromARGB(255, 249, 95, 147), // Vibrant pink
@@ -85,7 +92,7 @@ ThemeData appTheme() {
       ),
     ),
     snackBarTheme: const SnackBarThemeData(
-      backgroundColor: Color.fromARGB(255, 238, 87, 140), // Đảm bảo màu
+      backgroundColor: Color.fromARGB(255, 238, 87, 140),
       contentTextStyle: TextStyle(
         color: Colors.black87,
         fontFamily: 'Poppins',
@@ -94,7 +101,7 @@ ThemeData appTheme() {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      behavior: SnackBarBehavior.fixed, // Xác định floating
+      behavior: SnackBarBehavior.fixed,
     ),
     dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
